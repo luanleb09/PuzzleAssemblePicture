@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+            android:allowBackup="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:supportsRtl="true"
+            android:theme="@style/Theme.PuzzleAssemble"
+            tools:targetApi="31">
+
+        <!-- Splash Activity (Launch Activity) -->
+        <activity
+                android:name=".SplashActivity"
+                android:exported="true"
+                android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Main Activity -->
+        <activity
+                android:name=".MainActivity"
+                android:exported="false"
+                android:screenOrientation="portrait" />
+
+        <!-- Game Activity -->
+        <activity
+                android:name=".GameActivity"
+                android:exported="false"
+                android:screenOrientation="portrait" />
+
+        <!-- Gallery Activity -->
+        <activity
+                android:name=".GalleryActivity"
+                android:exported="false"
+                android:screenOrientation="portrait" />
+
+        <!-- Level Selection Activity -->
+        <activity
+                android:name=".LevelSelectionActivity"
+                android:exported="false"
+                android:screenOrientation="portrait" />
+
+        <activity
+                android:name=".AchievementActivity"
+                android:label="Achievements"
+                android:parentActivityName=".MainActivity"
+                android:screenOrientation="portrait"/>
+
+        <activity
+                android:name=".SettingsActivity"
+                android:label="Settings"
+                android:parentActivityName=".MainActivity"
+                android:screenOrientation="portrait"/>
+
+    </application>
+
+</manifest>

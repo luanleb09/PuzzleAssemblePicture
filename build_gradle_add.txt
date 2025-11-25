@@ -1,0 +1,59 @@
+﻿// Add to build.gradle (Module: app)
+// Inside android { } block
+
+bundle {
+    language {
+        enableSplit = true
+    }
+    density {
+        enableSplit = true
+    }
+}
+
+assetPacks {
+    puzzlepack_001 {
+        packType = 'on-demand'
+    }
+    puzzlepack_002 {
+        packType = 'on-demand'
+    }
+    puzzlepack_003 {
+        packType = 'on-demand'
+    }
+    puzzlepack_004 {
+        packType = 'on-demand'
+    }
+    puzzlepack_005 {
+        packType = 'on-demand'
+    }
+    puzzlepack_006 {
+        packType = 'on-demand'
+    }
+    puzzlepack_007 {
+        packType = 'on-demand'
+    }
+    puzzlepack_008 {
+        packType = 'on-demand'
+    }
+    puzzlepack_009 {
+        packType = 'on-demand'
+    }
+    puzzlepack_010 {
+        packType = 'on-demand'
+    }
+    puzzlepack_011 {
+        packType = 'on-demand'
+    }
+    puzzlepack_012 {
+        packType = 'on-demand'
+    }
+    puzzlepack_013 {
+        packType = 'on-demand'
+    }
+    puzzlepack_014 {
+        packType = 'on-demand'
+    }
+    puzzlepack_015 {
+        packType = 'on-demand'
+    }
+}

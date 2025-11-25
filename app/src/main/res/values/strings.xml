@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">Puzzle Assemble</string>
+    <string name="select_mode">Select Game Mode</string>
+    <string name="locked">Locked</string>
+    <string name="puzzlepack_001_title">Puzzle Pack 1</string>
+    <string name="puzzlepack_002_title">Puzzle Pack 2</string>
+    <string name="puzzlepack_003_title">Puzzle Pack 3</string>
+    <string name="puzzlepack_004_title">Puzzle Pack 4</string>
+    <string name="puzzlepack_005_title">Puzzle Pack 5</string>
+    <string name="puzzlepack_006_title">Puzzle Pack 6</string>
+    <string name="puzzlepack_007_title">Puzzle Pack 7</string>
+    <string name="puzzlepack_008_title">Puzzle Pack 8</string>
+    <string name="puzzlepack_009_title">Puzzle Pack 9</string>
+    <string name="puzzlepack_010_title">Puzzle Pack 10</string>
+    <string name="puzzlepack_011_title">Puzzle Pack 11</string>
+    <string name="puzzlepack_012_title">Puzzle Pack 12</string>
+    <string name="puzzlepack_013_title">Puzzle Pack 13</string>
+    <string name="puzzlepack_014_title">Puzzle Pack 14</string>
+    <string name="puzzlepack_015_title">Puzzle Pack 15</string>
+</resources>

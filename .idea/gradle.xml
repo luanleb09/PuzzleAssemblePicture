@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GradleMigrationSettings" migrationVersion="1" />
+  <component name="GradleSettings">
+    <option name="linkedExternalProjectsSettings">
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="gradleJvm" value="#GRADLE_LOCAL_JAVA_HOME" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/app" />
+            <option value="$PROJECT_DIR$/assetpacks" />
+            <option value="$PROJECT_DIR$/assetpacks/puzzlepack_001" />
+            <option value="$PROJECT_DIR$/assetpacks/puzzlepack_002" />
+            <option value="$PROJECT_DIR$/assetpacks/puzzlepack_003" />
+            <option value="$PROJECT_DIR$/assetpacks/puzzlepack_004" />
+            <option value="$PROJECT_DIR$/assetpacks/puzzlepack_005" />
+            <option value="$PROJECT_DIR$/assetpacks/puzzlepack_006" />
+            <option value="$PROJECT_DIR$/assetpacks/puzzlepack_007" />
+            <option value="$PROJECT_DIR$/assetpacks/puzzlepack_008" />
+            <option value="$PROJECT_DIR$/assetpacks/puzzlepack_009" />
+            <option value="$PROJECT_DIR$/assetpacks/puzzlepack_010" />
+            <option value="$PROJECT_DIR$/assetpacks/puzzlepack_011" />
+            <option value="$PROJECT_DIR$/assetpacks/puzzlepack_012" />
+            <option value="$PROJECT_DIR$/assetpacks/puzzlepack_013" />
+            <option value="$PROJECT_DIR$/assetpacks/puzzlepack_014" />
+            <option value="$PROJECT_DIR$/assetpacks/puzzlepack_015" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+    </option>
+  </component>
+</project>

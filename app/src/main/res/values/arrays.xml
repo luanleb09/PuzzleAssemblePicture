@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Languages -->
+    <string-array name="languages">
+        <item>English</item>
+        <item>Tiếng Việt (Coming Soon)</item>
+    </string-array>
+
+    <!-- Themes -->
+    <string-array name="themes">
+        <item>Auto (System Default)</item>
+        <item>Light</item>
+        <item>Dark</item>
+    </string-array>
+</resources>

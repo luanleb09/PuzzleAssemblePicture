@@ -1,0 +1,10 @@
+build.gradleplugins {
+    id 'com.android.asset-pack'
+}
+
+assetPack {
+    packName = "puzzlepack_008"
+    dynamicDelivery {
+        deliveryType = "on-demand"
+    }
+}

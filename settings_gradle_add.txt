@@ -1,0 +1,19 @@
+﻿// Add to settings.gradle
+
+include ':app'
+include ':assetpacks:puzzlepack_001'
+include ':assetpacks:puzzlepack_002'
+include ':assetpacks:puzzlepack_003'
+include ':assetpacks:puzzlepack_004'
+include ':assetpacks:puzzlepack_005'
+include ':assetpacks:puzzlepack_006'
+include ':assetpacks:puzzlepack_007'
+include ':assetpacks:puzzlepack_008'
+include ':assetpacks:puzzlepack_009'
+include ':assetpacks:puzzlepack_010'
+include ':assetpacks:puzzlepack_011'
+include ':assetpacks:puzzlepack_012'
+include ':assetpacks:puzzlepack_013'
+include ':assetpacks:puzzlepack_014'
+include ':assetpacks:puzzlepack_015'
+

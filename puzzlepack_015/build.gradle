@@ -1,0 +1,10 @@
+plugins {
+    id 'com.android.asset-pack'
+}
+
+assetPack {
+    packName = "puzzlepack_015"
+    dynamicDelivery {
+        deliveryType = "on-demand"
+    }
+}
