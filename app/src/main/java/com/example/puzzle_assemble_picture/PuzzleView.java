@@ -641,4 +641,133 @@ public class PuzzleView extends View {
             }
         }
     }
+
+    /**
+     * AUTO-SOLVE ONE PIECE
+     * Tìm 1 mảnh sai vị trí và đổi về đúng chỗ
+     */
+    public boolean autoSolveOnePiece() {
+        try {
+            // Tìm mảnh đầu tiên chưa đúng vị trí và chưa locked
+            for (int row = 0; row < config.gridSize; row++) {
+                for (int col = 0; col < config.gridSize; col++) {
+                    PuzzlePiece piece = grid[row][col];
+
+                    if (piece != null && !piece.isLocked()) {
+                        // Kiểm tra nếu piece này chưa đúng vị trí
+                        if (piece.getCorrectRow() != row || piece.getCorrectCol() != col) {
+                            // Tìm vị trí đúng của piece này
+                            int correctRow = piece.getCorrectRow();
+                            int correctCol = piece.getCorrectCol();
+
+                            // Kiểm tra piece ở vị trí đúng có locked không
+                            PuzzlePiece pieceAtCorrectPos = grid[correctRow][correctCol];
+                            if (pieceAtCorrectPos != null && pieceAtCorrectPos.isLocked()) {
+                                continue; // Skip, không swap với locked piece
+                            }
+
+                            // Swap
+                            Log.d(TAG, "Auto-solving: Moving piece[" + piece.getCorrectRow() + "," +
+                                    piece.getCorrectCol() + "] from [" + row + "," + col +
+                                    "] to [" + correctRow + "," + correctCol + "]");
+
+                            swapPieces(row, col, correctRow, correctCol);
+                            checkAllConnections();
+                            checkLocking();
+                            invalidate();
+
+                            if (listener != null) {
+                                listener.onPieceConnected();
+                            }
+
+                            return true; // Success
+                        }
+                    }
+                }
+            }
+
+            Log.d(TAG, "No piece to auto-solve (all correct or locked)");
+            return false;
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in autoSolveOnePiece", e);
+            return false;
+        }
+    }
+
+    /**
+     * SHUFFLE REMAINING PIECES
+     * Xáo trộn tất cả mảnh chưa đúng vị trí (không động locked pieces)
+     */
+    public boolean shuffleRemainingPieces() {
+        try {
+            // Thu thập tất cả pieces chưa đúng vị trí và chưa locked
+            List<PuzzlePiece> incorrectPieces = new ArrayList<>();
+            List<int[]> incorrectPositions = new ArrayList<>();
+
+            for (int row = 0; row < config.gridSize; row++) {
+                for (int col = 0; col < config.gridSize; col++) {
+                    PuzzlePiece piece = grid[row][col];
+
+                    if (piece != null && !piece.isLocked()) {
+                        if (piece.getCorrectRow() != row || piece.getCorrectCol() != col) {
+                            incorrectPieces.add(piece);
+                            incorrectPositions.add(new int[]{row, col});
+                        }
+                    }
+                }
+            }
+
+            if (incorrectPieces.isEmpty()) {
+                Log.d(TAG, "No pieces to shuffle (all correct or locked)");
+                return false;
+            }
+
+            // Shuffle pieces
+            Collections.shuffle(incorrectPieces);
+
+            // Đặt lại vào grid
+            for (int i = 0; i < incorrectPieces.size(); i++) {
+                int[] pos = incorrectPositions.get(i);
+                grid[pos[0]][pos[1]] = incorrectPieces.get(i);
+            }
+
+            Log.d(TAG, "Shuffled " + incorrectPieces.size() + " pieces");
+
+            checkAllConnections();
+            invalidate();
+
+            if (listener != null) {
+                listener.onProgressChanged();
+            }
+
+            return true;
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in shuffleRemainingPieces", e);
+            return false;
+        }
+    }
+
+    /**
+     * GET STATS
+     */
+    public int getLockedPiecesCount() {
+        int count = 0;
+        for (int row = 0; row < config.gridSize; row++) {
+            for (int col = 0; col < config.gridSize; col++) {
+                PuzzlePiece piece = grid[row][col];
+                if (piece != null && piece.isLocked()) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    public int getRemainingPiecesCount() {
+        int totalPieces = config.gridSize * config.gridSize;
+        int correctPieces = getCorrectPiecesCount();
+        return totalPieces - correctPieces;
+    }
 }

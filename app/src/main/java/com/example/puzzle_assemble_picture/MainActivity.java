@@ -27,6 +27,19 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // ✅ Initialize AdMob ASYNC - không block UI thread
+        new Thread(() -> {
+            AdMobHelper.initialize(MainActivity.this);
+
+            // Load banner sau khi init xong
+            runOnUiThread(() -> {
+                adView = findViewById(R.id.adView);
+                if (adView != null) {
+                    AdMobHelper.loadBannerAd(adView);
+                }
+            });
+        }).start();
+
         progressManager = new GameProgressManager(this);
 
         // Initialize views
@@ -50,16 +63,6 @@ public class MainActivity extends AppCompatActivity {
         btnGallery.setOnClickListener(v -> openGallery());
         btnAchievements.setOnClickListener(v -> openAchievements());
         btnSettings.setOnClickListener(v -> openSettings());
-
-        // Initialize AdMob
-        AdMobHelper.initialize(this);
-
-        // Load Banner Ad
-        adView = findViewById(R.id.adView);
-        AdMobHelper.loadBannerAd(adView);
-
-        // Debug button (optional - remove in production)
-//        findViewById(R.id.btnDebug).setOnClickListener(v -> showDebugInfo());
     }
 
     @Override
@@ -83,6 +86,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @Override
     protected void onDestroy() {
         if (adView != null) {
             adView.destroy();
@@ -196,89 +200,6 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(this, SettingsActivity.class);
         startActivity(intent);
         overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
-    }
-
-    private void showDebugInfo() {
-        StringBuilder debugInfo = new StringBuilder("Debug Info:\n\n");
-
-        String[] allModes = {GameMode.MODE_EASY, GameMode.MODE_NORMAL, GameMode.MODE_HARD, GameMode.MODE_INSANE};
-        String[] modeNames = {"Easy", "Normal", "Hard", "Insane"};
-
-        for (int m = 0; m < allModes.length; m++) {
-            String mode = allModes[m];
-            String modeName = modeNames[m];
-
-            int currentLevel = progressManager.getCurrentLevel(mode);
-            int completed = progressManager.getCompletedLevelsInMode(mode);
-            float modeCompletion = progressManager.getModeCompletionPercentage(mode);
-            boolean isUnlocked = progressManager.isModeUnlocked(mode);
-
-            debugInfo.append("━━━━━━━━━━━━━━━━━━━━\n");
-            debugInfo.append(modeName).append(" Mode ");
-            debugInfo.append(isUnlocked ? "✓" : "🔒").append("\n");
-            debugInfo.append("━━━━━━━━━━━━━━━━━━━━\n");
-            debugInfo.append("Current Level: ").append(currentLevel).append("\n");
-            debugInfo.append("Completed: ").append(completed).append("/").append(GameProgressManager.MAX_LEVEL);
-            debugInfo.append(" (").append(String.format("%.1f", modeCompletion)).append("%)\n");
-
-            // Show first 10 levels status
-            debugInfo.append("Levels 1-10: ");
-            for (int i = 1; i <= 10; i++) {
-                if (progressManager.isLevelCompleted(mode, i)) {
-                    debugInfo.append("✓");
-                } else if (i <= currentLevel) {
-                    debugInfo.append("○");
-                } else {
-                    debugInfo.append("🔒");
-                }
-                if (i < 10) debugInfo.append(" ");
-            }
-            debugInfo.append("\n\n");
-        }
-
-        // Overall stats
-        debugInfo.append("━━━━━━━━━━━━━━━━━━━━\n");
-        debugInfo.append("Overall Stats\n");
-        debugInfo.append("━━━━━━━━━━━━━━━━━━━━\n");
-
-        int totalCompleted = progressManager.getTotalCompletedLevelsAllModes();
-        int totalLevels = GameProgressManager.MAX_LEVEL * 4;
-        float overallCompletion = progressManager.getOverallCompletionPercentage();
-
-        debugInfo.append("Total Completed: ").append(totalCompleted).append("/").append(totalLevels).append("\n");
-        debugInfo.append("Overall Progress: ").append(String.format("%.1f", overallCompletion)).append("%\n\n");
-
-        int galleryPieces = progressManager.getUnlockedPiecesCount();
-        int achievements = progressManager.getUnlockedAchievementsCount();
-
-        debugInfo.append("Gallery Pieces: ").append(galleryPieces).append("/100\n");
-        debugInfo.append("Achievements: ").append(achievements).append("/").append(GameProgressManager.TOTAL_ACHIEVEMENTS).append("\n");
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("🔧 Debug Info");
-        builder.setMessage(debugInfo.toString());
-        builder.setPositiveButton("Close", null);
-        builder.setNeutralButton("Reset All", (dialog, which) -> showResetConfirmation());
-        builder.show();
-    }
-
-    private void showResetConfirmation() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("⚠️ Reset All Progress?");
-        builder.setMessage("This will delete ALL your progress, completed levels, gallery pieces, and achievements. This action cannot be undone!");
-        builder.setPositiveButton("Reset", (dialog, which) -> {
-            progressManager.resetAllProgress();
-
-            // Refresh UI
-            List<GameMode> modes = createModeList();
-            ModeSelectAdapter adapter = new ModeSelectAdapter(modes, this::onModeSelected);
-            modeRecyclerView.setAdapter(adapter);
-            updateProgressText();
-
-            android.widget.Toast.makeText(this, "All progress reset!", android.widget.Toast.LENGTH_SHORT).show();
-        });
-        builder.setNegativeButton("Cancel", null);
-        builder.show();
     }
 
     @Override

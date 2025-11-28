@@ -14,8 +14,8 @@ import android.widget.Toast;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.MobileAds;
-import android.view.View;
-import android.widget.ImageView;
+
+import android.widget.ProgressBar;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -49,11 +49,25 @@ public class GameActivity extends AppCompatActivity {
     private View fullscreenOverlay;
     private ImageView fullscreenImageView;
 
+    private PowerUpsManager powerUpsManager;
+    private Button autoSolveButton;
+    private Button shuffleButton;
+    private ProgressBar progressBar;
+    private TextView lockedCountText;
+    private TextView remainingCountText;
+    private TextView streakCountText;
+    private int currentStreak = 0;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         Log.d(TAG, "=== GameActivity onCreate START ===");
+
+        // Initialize AdMob
+        MobileAds.initialize(this, initializationStatus -> {
+            Log.d(TAG, "AdMob initialized");
+        });
 
         try {
             setContentView(R.layout.activity_game);
@@ -116,10 +130,7 @@ public class GameActivity extends AppCompatActivity {
             Toast.makeText(this, "Error loading game: " + e.getMessage(), Toast.LENGTH_LONG).show();
             finish();
         }
-        // Initialize AdMob
-        MobileAds.initialize(this, initializationStatus -> {
-            Log.d(TAG, "AdMob initialized");
-        });
+
 
         // Setup AdMob Banner
         adView = findViewById(R.id.adView);
@@ -139,6 +150,24 @@ public class GameActivity extends AppCompatActivity {
 
         // Click overlay to close
         fullscreenOverlay.setOnClickListener(v -> hideFullscreenImage());
+
+        // Initialize Power-ups Manager
+        powerUpsManager = new PowerUpsManager(this);
+
+    // Initialize new views
+        autoSolveButton = findViewById(R.id.autoSolveButton);
+        shuffleButton = findViewById(R.id.shuffleButton);
+        progressBar = findViewById(R.id.progressBar);
+        lockedCountText = findViewById(R.id.lockedCountText);
+        remainingCountText = findViewById(R.id.remainingCountText);
+        streakCountText = findViewById(R.id.streakCountText);
+
+    // Setup power-up buttons
+        autoSolveButton.setOnClickListener(v -> useAutoSolve());
+        shuffleButton.setOnClickListener(v -> useShuffle());
+
+    // Update button texts với số lượt
+        updatePowerUpButtons();
 
     }
 
@@ -400,7 +429,21 @@ public class GameActivity extends AppCompatActivity {
             @Override
             public void onPieceConnected() {
                 playClickSound();
-                updateProgress();
+
+                // Increase streak khi piece đúng vị trí
+                PuzzlePiece lastMovedPiece = getLastMovedPiece();
+                if (lastMovedPiece != null && lastMovedPiece.isLocked()) {
+                    currentStreak++;
+                    if (currentStreak > 1) {
+                        Toast.makeText(GameActivity.this,
+                                "🔥 Streak: " + currentStreak + "!",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    currentStreak = 0;
+                }
+
+                updateStats();
             }
 
             @Override
@@ -411,7 +454,7 @@ public class GameActivity extends AppCompatActivity {
 
             @Override
             public void onProgressChanged() {
-                updateProgress();
+                updateStats();
             }
         };
     }
@@ -429,6 +472,7 @@ public class GameActivity extends AppCompatActivity {
         int correctPieces = puzzleView.getCorrectPiecesCount();
         int totalPieces = gridSize * gridSize;
         progressText.setText(correctPieces + "/" + totalPieces + " correct");
+        updateStats();
     }
 
     private void checkProgress() {
@@ -611,6 +655,108 @@ public class GameActivity extends AppCompatActivity {
         }
     }
 
+    private void useAutoSolve() {
+        powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.AUTO_SOLVE, new PowerUpsManager.PowerUpCallback() {
+            @Override
+            public void onSuccess() {
+                // Execute auto-solve
+                boolean solved = puzzleView.autoSolveOnePiece();
+
+                if (solved) {
+                    Toast.makeText(GameActivity.this, "✨ One piece auto-solved!", Toast.LENGTH_SHORT).show();
+                    updateStats();
+                    updatePowerUpButtons();
+
+                    // Check completion
+                    if (puzzleView.isPuzzleCompleted()) {
+                        onLevelCompleted();
+                    }
+                } else {
+                    Toast.makeText(GameActivity.this, "No pieces to auto-solve!", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailed(String reason) {
+                Toast.makeText(GameActivity.this, reason, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void useShuffle() {
+        powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.SHUFFLE, new PowerUpsManager.PowerUpCallback() {
+            @Override
+            public void onSuccess() {
+                // Execute shuffle
+                boolean shuffled = puzzleView.shuffleRemainingPieces();
+
+                if (shuffled) {
+                    Toast.makeText(GameActivity.this, "🔀 Pieces shuffled!", Toast.LENGTH_SHORT).show();
+                    currentStreak = 0; // Reset streak khi shuffle
+                    updateStats();
+                    updatePowerUpButtons();
+                } else {
+                    Toast.makeText(GameActivity.this, "No pieces to shuffle!", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailed(String reason) {
+                Toast.makeText(GameActivity.this, reason, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void updatePowerUpButtons() {
+        int autoSolveRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.AUTO_SOLVE);
+        int shuffleRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.SHUFFLE);
+
+        if (autoSolveRemaining > 0) {
+            autoSolveButton.setText("🎯 Auto-Solve (" + autoSolveRemaining + ")");
+            autoSolveButton.setEnabled(true);
+            autoSolveButton.setAlpha(1.0f);
+        } else {
+            autoSolveButton.setText("🎯 Auto-Solve (📺 Watch Ad)");
+            autoSolveButton.setEnabled(true);
+            autoSolveButton.setAlpha(0.8f);
+        }
+
+        if (shuffleRemaining > 0) {
+            shuffleButton.setText("🔀 Shuffle (" + shuffleRemaining + ")");
+            shuffleButton.setEnabled(true);
+            shuffleButton.setAlpha(1.0f);
+        } else {
+            shuffleButton.setText("🔀 Shuffle (📺 Watch Ad)");
+            shuffleButton.setEnabled(true);
+            shuffleButton.setAlpha(0.8f);
+        }
+    }
+
+    private void updateStats() {
+        int totalPieces = gridSize * gridSize;
+        int correctPieces = puzzleView.getCorrectPiecesCount();
+        int lockedPieces = puzzleView.getLockedPiecesCount();
+        int remainingPieces = puzzleView.getRemainingPiecesCount();
+
+        // Update progress bar
+        int progress = (correctPieces * 100) / totalPieces;
+        progressBar.setProgress(progress);
+
+        // Update counts
+        lockedCountText.setText(String.valueOf(lockedPieces));
+        remainingCountText.setText(String.valueOf(remainingPieces));
+        streakCountText.setText(String.valueOf(currentStreak));
+
+        // Update main progress text
+        progressText.setText(correctPieces + "/" + totalPieces + " (" + progress + "%)");
+    }
+
+    private PuzzlePiece getLastMovedPiece() {
+        // Simplified - just return null for now
+        // PuzzleView cần track last moved piece nếu muốn chính xác
+        return null;
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -644,6 +790,9 @@ public class GameActivity extends AppCompatActivity {
         if (adView != null) {
             adView.destroy();
         }
+
+        powerUpsManager = null;
+        super.onDestroy();
     }
 
     private void showFullscreenImage() {

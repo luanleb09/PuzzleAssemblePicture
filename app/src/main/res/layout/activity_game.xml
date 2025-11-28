@@ -65,40 +65,209 @@
 
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Puzzle View - Chiều dọc -->
+    <!-- Container cho Sample + Stats -->
+    <LinearLayout
+            android:id="@+id/topInfoLayout"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_margin="12dp"
+            app:layout_constraintTop_toBottomOf="@id/topBar"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Sample Image Thumbnail - Nhỏ hơn -->
+        <com.google.android.material.card.MaterialCardView
+                android:id="@+id/sampleCard"
+                android:layout_width="60dp"
+                android:layout_height="80dp"
+                android:elevation="12dp"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="12dp">
+
+            <ImageView
+                    android:id="@+id/sampleImageView"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="Sample puzzle image"
+                    android:visibility="gone" />
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Mini Progress Panel -->
+        <com.google.android.material.card.MaterialCardView
+                android:id="@+id/statsCard"
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                app:cardCornerRadius="8dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="#AA000000">
+
+            <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:padding="8dp"
+                    android:gravity="center">
+
+                <!-- Progress Bar -->
+                <ProgressBar
+                        android:id="@+id/progressBar"
+                        android:layout_width="match_parent"
+                        android:layout_height="8dp"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:max="100"
+                        android:progress="0"
+                        android:progressTint="#4CAF50" />
+
+                <!-- Stats Row -->
+                <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="4dp">
+
+                    <!-- Locked Count -->
+                    <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:gravity="center">
+
+                        <TextView
+                                android:id="@+id/lockedCountText"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="0"
+                                android:textSize="16sp"
+                                android:textStyle="bold"
+                                android:textColor="#4CAF50" />
+
+                        <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Locked"
+                                android:textSize="10sp"
+                                android:textColor="@color/white"
+                                android:alpha="0.7" />
+
+                    </LinearLayout>
+
+                    <!-- Remaining Count -->
+                    <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:gravity="center">
+
+                        <TextView
+                                android:id="@+id/remainingCountText"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="25"
+                                android:textSize="16sp"
+                                android:textStyle="bold"
+                                android:textColor="#FF9800" />
+
+                        <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Remaining"
+                                android:textSize="10sp"
+                                android:textColor="@color/white"
+                                android:alpha="0.7" />
+
+                    </LinearLayout>
+
+                    <!-- Streak Counter -->
+                    <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:gravity="center">
+
+                        <TextView
+                                android:id="@+id/streakCountText"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="0"
+                                android:textSize="16sp"
+                                android:textStyle="bold"
+                                android:textColor="#FFD700" />
+
+                        <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Streak"
+                                android:textSize="10sp"
+                                android:textColor="@color/white"
+                                android:alpha="0.7" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+
+    <!-- Puzzle View -->
     <com.example.puzzle_assemble_picture.PuzzleView
             android:id="@+id/puzzleView"
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:layout_margin="16dp"
-            app:layout_constraintTop_toBottomOf="@id/topBar"
-            app:layout_constraintBottom_toTopOf="@id/buttonBar"
+            app:layout_constraintTop_toBottomOf="@id/topInfoLayout"
+            app:layout_constraintBottom_toTopOf="@id/powerUpsBar"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Sample Image Thumbnail - Z-index cao hơn để nổi lên trên -->
-    <com.google.android.material.card.MaterialCardView
-            android:id="@+id/sampleCard"
-            android:layout_width="80dp"
-            android:layout_height="100dp"
-            android:layout_margin="12dp"
-            android:elevation="12dp"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="12dp"
-            app:layout_constraintTop_toBottomOf="@id/topBar"
-            app:layout_constraintStart_toStartOf="parent">
+    <!-- Power-ups Bar -->
+    <LinearLayout
+            android:id="@+id/powerUpsBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="8dp"
+            android:gravity="center"
+            android:weightSum="2"
+            app:layout_constraintBottom_toTopOf="@id/buttonBar">
 
-        <ImageView
-                android:id="@+id/sampleImageView"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="centerCrop"
-                android:contentDescription="Sample puzzle image"
-                android:visibility="gone" />
+        <!-- Auto-Solve One Button -->
+        <Button
+                android:id="@+id/autoSolveButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="🎯 Auto-Solve (3)"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_marginEnd="4dp" />
 
-    </com.google.android.material.card.MaterialCardView>
+        <!-- Shuffle Remaining Button -->
+        <Button
+                android:id="@+id/shuffleButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="🔀 Shuffle (3)"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_marginStart="4dp" />
 
-    <!-- Button Bar - Ngang phía trên ads với button style mới -->
+    </LinearLayout>
+
+    <!-- Button Bar -->
     <LinearLayout
             android:id="@+id/buttonBar"
             android:layout_width="match_parent"
@@ -109,7 +278,7 @@
             android:weightSum="2"
             app:layout_constraintBottom_toTopOf="@id/adViewContainer">
 
-        <!-- Save Button - Style giống Custom Mode -->
+        <!-- Save Button -->
         <Button
                 android:id="@+id/saveButton"
                 android:layout_width="0dp"
@@ -121,7 +290,7 @@
                 style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_marginEnd="6dp" />
 
-        <!-- Check Button - Style giống Custom Mode -->
+        <!-- Check Button -->
         <Button
                 android:id="@+id/checkButton"
                 android:layout_width="0dp"
@@ -135,7 +304,7 @@
 
     </LinearLayout>
 
-    <!-- AdMob Banner Container -->
+    <!-- AdMob Banner -->
     <FrameLayout
             android:id="@+id/adViewContainer"
             android:layout_width="match_parent"
