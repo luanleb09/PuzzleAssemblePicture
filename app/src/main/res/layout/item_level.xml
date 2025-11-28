@@ -45,7 +45,20 @@
                 app:layout_constraintBottom_toBottomOf="parent"
                 android:layout_marginBottom="8dp" />
 
-        <!-- Lock Icon (for locked levels) -->
+        <!-- THÊM: Download Icon (for levels that need download) - Top Left -->
+        <ImageView
+                android:id="@+id/downloadIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/stat_sys_download"
+                android:tint="@color/white"
+                android:visibility="gone"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                android:layout_margin="8dp"
+                android:contentDescription="Download Required" />
+
+        <!-- Lock Icon (for locked levels) - Top Right -->
         <ImageView
                 android:id="@+id/lockIcon"
                 android:layout_width="32dp"
@@ -58,7 +71,7 @@
                 android:layout_margin="8dp"
                 android:contentDescription="Locked" />
 
-        <!-- Check Icon (for completed levels) -->
+        <!-- Check Icon (for completed levels) - Top Right -->
         <ImageView
                 android:id="@+id/checkIcon"
                 android:layout_width="24dp"
@@ -71,7 +84,7 @@
                 android:layout_margin="8dp"
                 android:contentDescription="Completed" />
 
-        <!-- Save Icon (for levels with saved games) -->
+        <!-- Save Icon (for levels with saved games) - Bottom Right -->
         <ImageView
                 android:id="@+id/saveIcon"
                 android:layout_width="20dp"

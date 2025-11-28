@@ -3,40 +3,39 @@ package com.example.puzzle_assemble_picture;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.Looper;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.ImageView;
 import android.widget.TextView;
-
 import androidx.appcompat.app.AppCompatActivity;
 
 public class SplashActivity extends AppCompatActivity {
 
-    private static final int SPLASH_DURATION = 2500;
+    private static final int SPLASH_DURATION = 2500; // 2.5 giây
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
 
-        ImageView splashLogo = findViewById(R.id.splashLogo);
-        TextView splashTitle = findViewById(R.id.splashTitle);
+        ImageView logo = findViewById(R.id.splashLogo);
+        TextView appName = findViewById(R.id.splashTitle);
+//        TextView tagline = findViewById(R.id.splashTagline);
 
-        Animation fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in);
-        splashLogo.startAnimation(fadeIn);
-        splashTitle.startAnimation(fadeIn);
+        // Animation fade in
+        Animation fadeIn = AnimationUtils.loadAnimation(this, android.R.anim.fade_in);
+        fadeIn.setDuration(1000);
 
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+        logo.startAnimation(fadeIn);
+        appName.startAnimation(fadeIn);
+//        tagline.startAnimation(fadeIn);
+
+        // Chuyển sang MainActivity sau 2.5 giây
+        new Handler().postDelayed(() -> {
             Intent intent = new Intent(SplashActivity.this, MainActivity.class);
             startActivity(intent);
-            overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
             finish();
         }, SPLASH_DURATION);
-    }
-
-    @Override
-    public void onBackPressed() {
-        // Disable back button on splash screen
     }
 }

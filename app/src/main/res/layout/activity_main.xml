@@ -2,18 +2,24 @@
 <androidx.constraintlayout.widget.ConstraintLayout
         xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:ads="http://schemas.android.com/apk/res-auto"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@drawable/background_main">
 
-    <!-- Header Section -->
+    <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#20000000" />
+
+    <!-- Header Section - Di chuyển lên -->
     <LinearLayout
             android:id="@+id/headerLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="16dp"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="8dp"
             app:layout_constraintTop_toTopOf="parent">
 
         <!-- Title -->
@@ -25,7 +31,8 @@
                 android:textSize="32sp"
                 android:textStyle="bold"
                 android:textColor="@color/md_theme_light_primary"
-                android:layout_gravity="center" />
+                android:layout_gravity="center"
+                android:layout_marginTop="8dp" />
 
         <!-- Subtitle -->
         <TextView
@@ -58,26 +65,44 @@
             android:id="@+id/modeRecyclerView"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="4dp"
+            android:clipToPadding="false"
+            android:padding="4dp"
+            app:layout_constraintTop_toBottomOf="@id/headerLayout"
+            app:layout_constraintBottom_toTopOf="@id/customModeButton"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Custom Mode Button - Locked -->
+    <Button
+            android:id="@+id/customModeButton"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:text="🔒 Custom Mode (Coming Soon)"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:enabled="false"
+            android:alpha="0.6"
+            style="@style/Widget.Material3.Button.TonalButton"
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
             android:layout_marginBottom="8dp"
-            android:clipToPadding="false"
-            android:padding="8dp"
-            app:layout_constraintTop_toBottomOf="@id/headerLayout"
             app:layout_constraintBottom_toTopOf="@id/bottomButtonsLayout"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Bottom Buttons -->
+    <!-- Bottom Buttons - Rút gọn -->
     <LinearLayout
             android:id="@+id/bottomButtonsLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp"
-            android:layout_marginBottom="8dp"
-            app:layout_constraintBottom_toBottomOf="parent"
+            android:padding="12dp"
+            android:layout_marginBottom="4dp"
+            app:layout_constraintBottom_toTopOf="@id/adViewContainer"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
@@ -85,12 +110,12 @@
         <Button
                 android:id="@+id/btnGallery"
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="52dp"
                 android:text="🖼️ Gallery"
-                android:textSize="16sp"
+                android:textSize="15sp"
                 android:textStyle="bold"
                 style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_marginBottom="8dp" />
+                android:layout_marginBottom="6dp" />
 
         <!-- Bottom Row: Achievements and Settings -->
         <LinearLayout
@@ -103,40 +128,46 @@
             <Button
                     android:id="@+id/btnAchievements"
                     android:layout_width="0dp"
-                    android:layout_height="56dp"
+                    android:layout_height="52dp"
                     android:layout_weight="1"
                     android:text="🏆 Achievements"
-                    android:textSize="14sp"
+                    android:textSize="13sp"
                     android:textStyle="bold"
                     style="@style/Widget.Material3.Button.TonalButton"
-                    android:layout_marginEnd="4dp" />
+                    android:layout_marginEnd="3dp" />
 
             <!-- Settings Button -->
             <Button
                     android:id="@+id/btnSettings"
                     android:layout_width="0dp"
-                    android:layout_height="56dp"
+                    android:layout_height="52dp"
                     android:layout_weight="1"
                     android:text="⚙️ Settings"
-                    android:textSize="14sp"
+                    android:textSize="13sp"
                     android:textStyle="bold"
                     style="@style/Widget.Material3.Button.TonalButton"
-                    android:layout_marginStart="4dp" />
+                    android:layout_marginStart="3dp" />
 
         </LinearLayout>
 
-        <!-- Debug Button (Optional - Remove in production) -->
-        <Button
-                android:id="@+id/btnDebug"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:text="🔧 Debug Info"
-                android:textSize="12sp"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_marginTop="8dp"
-                android:visibility="visible" />
-        <!-- Set android:visibility="gone" in production -->
-
     </LinearLayout>
+
+    <!-- AdMob Banner -->
+    <FrameLayout
+            android:id="@+id/adViewContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#FFFFFF"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+        <com.google.android.gms.ads.AdView
+                android:id="@+id/adView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                ads:adSize="BANNER"
+                ads:adUnitId="ca-app-pub-3940256099942544/6300978111" />
+
+    </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

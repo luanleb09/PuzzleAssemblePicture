@@ -22,7 +22,6 @@ import android.os.VibrationEffect;
 public class PuzzleView extends View {
 
     private static final String TAG = "PuzzleView";
-    private static final float CONNECTION_TOLERANCE = 0.1f;
 
     private PuzzlePiece[][] grid;
     private List<PuzzlePiece> allPieces;
@@ -31,7 +30,7 @@ public class PuzzleView extends View {
 
     private float gridX, gridY;
     private int gridWidth, gridHeight;
-    private int cellSize;
+    private int cellWidth, cellHeight; // THAY ĐỔI: Riêng biệt width và height
 
     private PuzzlePiece draggedPiece;
     private int draggedFromRow, draggedFromCol;
@@ -43,7 +42,6 @@ public class PuzzleView extends View {
     private Paint dimPaint;
     private Paint gridPaint;
     private Paint borderPaint;
-    private Paint highlightPaint;
 
     public interface PuzzleListener {
         void onPieceConnected();
@@ -72,10 +70,6 @@ public class PuzzleView extends View {
         borderPaint.setStyle(Paint.Style.STROKE);
         borderPaint.setStrokeWidth(3);
 
-        highlightPaint = new Paint();
-        highlightPaint.setColor(Color.argb(100, 255, 255, 0));
-        highlightPaint.setStyle(Paint.Style.FILL);
-
         allPieces = new ArrayList<>();
     }
 
@@ -88,31 +82,85 @@ public class PuzzleView extends View {
         int screenHeight = getHeight();
 
         Log.d(TAG, "Initializing puzzle: " + config.gridSize + "x" + config.gridSize);
+        Log.d(TAG, "Screen size: " + screenWidth + "x" + screenHeight);
+        Log.d(TAG, "Image size: " + image.getWidth() + "x" + image.getHeight());
 
-        int gridSize = Math.min(screenWidth, screenHeight) - 40;
-        gridWidth = gridSize;
-        gridHeight = gridSize;
+        // FIX: Grid theo tỷ lệ ảnh gốc, mảnh có thể là hình chữ nhật
+        int padding = 40;
+        int availableWidth = screenWidth - (padding * 2);
+        int availableHeight = screenHeight - (padding * 2);
+
+        // Tính aspect ratio của ảnh gốc
+        float imageAspectRatio = (float) image.getHeight() / image.getWidth();
+
+        // Grid width = 90% màn hình
+        gridWidth = (int) (availableWidth * 0.9f);
+
+        // Grid height theo tỷ lệ ảnh gốc
+        gridHeight = (int) (gridWidth * imageAspectRatio);
+
+        // Đảm bảo không vượt quá màn hình
+        if (gridHeight > availableHeight) {
+            gridHeight = availableHeight;
+            gridWidth = (int) (gridHeight / imageAspectRatio);
+        }
+
+        // Center grid
         gridX = (screenWidth - gridWidth) / 2f;
         gridY = (screenHeight - gridHeight) / 2f;
-        cellSize = gridWidth / config.gridSize;
 
-        Bitmap scaledImage = Bitmap.createScaledBitmap(image, gridWidth, gridHeight, true);
+        // QUAN TRỌNG: Cell width và height RIÊNG BIỆT
+        cellWidth = gridWidth / config.gridSize;
+        cellHeight = gridHeight / config.gridSize;
+
+        Log.d(TAG, "Grid: " + gridWidth + "x" + gridHeight);
+        Log.d(TAG, "Cell: " + cellWidth + "x" + cellHeight);
+
+        // Scale ảnh theo EXACT grid size
+        Bitmap scaledImage = Bitmap.createScaledBitmap(
+                image,
+                gridWidth,
+                gridHeight,
+                true
+        );
 
         grid = new PuzzlePiece[config.gridSize][config.gridSize];
 
+        // Tạo pieces với kích thước hình chữ nhật chính xác
         for (int row = 0; row < config.gridSize; row++) {
             for (int col = 0; col < config.gridSize; col++) {
-                Bitmap pieceBitmap = Bitmap.createBitmap(
-                        scaledImage,
-                        col * cellSize,
-                        row * cellSize,
-                        cellSize,
-                        cellSize
-                );
+                int x = col * cellWidth;
+                int y = row * cellHeight;
 
-                PuzzlePiece piece = new PuzzlePiece(pieceBitmap, row, col, cellSize, cellSize);
-                allPieces.add(piece);
+                int width = Math.min(cellWidth, scaledImage.getWidth() - x);
+                int height = Math.min(cellHeight, scaledImage.getHeight() - y);
+
+                if (width <= 0 || height <= 0) {
+                    Log.e(TAG, "Invalid piece size at [" + row + "," + col + "]");
+                    continue;
+                }
+
+                try {
+                    Bitmap pieceBitmap = Bitmap.createBitmap(
+                            scaledImage,
+                            x, y,
+                            width, height
+                    );
+
+                    // Piece với width/height riêng biệt
+                    PuzzlePiece piece = new PuzzlePiece(pieceBitmap, row, col, cellWidth, cellHeight);
+                    allPieces.add(piece);
+
+                    Log.d(TAG, "Created piece [" + row + "," + col + "] size " + width + "x" + height);
+                } catch (Exception e) {
+                    Log.e(TAG, "Error creating piece [" + row + "," + col + "]", e);
+                }
             }
+        }
+
+        if (allPieces.size() != config.gridSize * config.gridSize) {
+            Log.e(TAG, "Piece count mismatch! Expected: " +
+                    (config.gridSize * config.gridSize) + ", Got: " + allPieces.size());
         }
 
         shufflePieces();
@@ -128,8 +176,6 @@ public class PuzzleView extends View {
         for (int row = 0; row < config.gridSize; row++) {
             for (int col = 0; col < config.gridSize; col++) {
                 grid[row][col] = shuffled.get(index++);
-                Log.d(TAG, "Grid[" + row + "][" + col + "] = piece[" +
-                        grid[row][col].getCorrectRow() + "," + grid[row][col].getCorrectCol() + "]");
             }
         }
     }
@@ -139,16 +185,20 @@ public class PuzzleView extends View {
         super.onDraw(canvas);
         if (config == null) return;
 
+        // Background
         Paint bgPaint = new Paint();
         bgPaint.setColor(Color.argb(50, 0, 0, 0));
         canvas.drawRect(gridX, gridY, gridX + gridWidth, gridY + gridHeight, bgPaint);
 
+        // Grid lines với cellWidth và cellHeight
         for (int i = 0; i <= config.gridSize; i++) {
-            float pos = i * cellSize;
-            canvas.drawLine(gridX + pos, gridY, gridX + pos, gridY + gridHeight, gridPaint);
-            canvas.drawLine(gridX, gridY + pos, gridX + gridWidth, gridY + pos, gridPaint);
+            float x = gridX + i * cellWidth;
+            float y = gridY + i * cellHeight;
+            canvas.drawLine(x, gridY, x, gridY + gridHeight, gridPaint);
+            canvas.drawLine(gridX, y, gridX + gridWidth, y, gridPaint);
         }
 
+        // Draw pieces
         for (int row = 0; row < config.gridSize; row++) {
             for (int col = 0; col < config.gridSize; col++) {
                 if (grid[row][col] != null && grid[row][col] != draggedPiece) {
@@ -157,12 +207,13 @@ public class PuzzleView extends View {
             }
         }
 
+        // Draw dragged piece
         if (draggedPiece != null && isDragging) {
             RectF destRect = new RectF(
                     draggedPieceX,
                     draggedPieceY,
-                    draggedPieceX + cellSize,
-                    draggedPieceY + cellSize
+                    draggedPieceX + cellWidth,
+                    draggedPieceY + cellHeight
             );
 
             Paint dragPaint = draggedPiece.isLocked() && config.dimLockedPieces ? dimPaint : paint;
@@ -173,6 +224,7 @@ public class PuzzleView extends View {
             canvas.drawRect(destRect, borderPaint);
         }
 
+        // Outer border
         Paint outerBorder = new Paint();
         outerBorder.setColor(Color.WHITE);
         outerBorder.setStyle(Paint.Style.STROKE);
@@ -181,23 +233,25 @@ public class PuzzleView extends View {
     }
 
     private void drawPieceAt(Canvas canvas, PuzzlePiece piece, int row, int col) {
-        float x = gridX + col * cellSize;
-        float y = gridY + row * cellSize;
+        float x = gridX + col * cellWidth;
+        float y = gridY + row * cellHeight;
 
-        RectF destRect = new RectF(x, y, x + cellSize, y + cellSize);
+        RectF destRect = new RectF(x, y, x + cellWidth, y + cellHeight);
 
         Paint currentPaint = piece.isLocked() && config.dimLockedPieces ? dimPaint : paint;
         canvas.drawBitmap(piece.getBitmap(), null, destRect, currentPaint);
 
         boolean isCorrect = (piece.getCorrectRow() == row && piece.getCorrectCol() == col);
 
-        borderPaint.setStrokeWidth(3);
+        // FIX: Không vẽ viền cho locked pieces (chỉ dim)
         if (piece.isLocked()) {
-            borderPaint.setColor(Color.GREEN);
-        } else if (!piece.getConnectedPieces().isEmpty()) {
+            // Không vẽ viền, chỉ để dim
+            return;
+        }
+
+        borderPaint.setStrokeWidth(3);
+        if (!piece.getConnectedPieces().isEmpty()) {
             borderPaint.setColor(Color.YELLOW);
-        } else if (isCorrect) {
-            borderPaint.setColor(Color.argb(255, 0, 200, 0));
         } else {
             borderPaint.setColor(Color.argb(150, 255, 255, 255));
         }
@@ -212,162 +266,240 @@ public class PuzzleView extends View {
 
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                if (x >= gridX && x < gridX + gridWidth && y >= gridY && y < gridY + gridHeight) {
-                    int col = (int) ((x - gridX) / cellSize);
-                    int row = (int) ((y - gridY) / cellSize);
-
-                    if (row >= 0 && row < config.gridSize && col >= 0 && col < config.gridSize) {
-                        draggedPiece = grid[row][col];
-                        if (draggedPiece != null && !draggedPiece.isLocked()) {
-                            draggedFromRow = row;
-                            draggedFromCol = col;
-                            dragOffsetX = x - (gridX + col * cellSize);
-                            dragOffsetY = y - (gridY + row * cellSize);
-                            draggedPieceX = gridX + col * cellSize;
-                            draggedPieceY = gridY + row * cellSize;
-                            isDragging = true;
-
-                            Log.d(TAG, "Started dragging from [" + row + "," + col + "]");
-                            invalidate();
-                        }
-                    }
-                }
-                return true;
+                return handleTouchDown(x, y);
 
             case MotionEvent.ACTION_MOVE:
-                if (isDragging && draggedPiece != null) {
-                    draggedPieceX = x - dragOffsetX;
-                    draggedPieceY = y - dragOffsetY;
-                    invalidate();
-                }
-                return true;
+                return handleTouchMove(x, y);
 
             case MotionEvent.ACTION_UP:
-                if (isDragging && draggedPiece != null) {
-                    int dropCol = Math.round((x - gridX - dragOffsetX) / cellSize);
-                    int dropRow = Math.round((y - gridY - dragOffsetY) / cellSize);
-
-                    dropCol = Math.max(0, Math.min(dropCol, config.gridSize - 1));
-                    dropRow = Math.max(0, Math.min(dropRow, config.gridSize - 1));
-
-                    Log.d(TAG, "Dropped at [" + dropRow + "," + dropCol + "]");
-
-                    if (dropRow != draggedFromRow || dropCol != draggedFromCol) {
-                        movePiece(draggedFromRow, draggedFromCol, dropRow, dropCol);
-                    }
-
-                    draggedPiece = null;
-                    isDragging = false;
-                    invalidate();
-
-                    if (isPuzzleComplete()) {
-                        if (listener != null) {
-                            listener.onPuzzleCompleted();
-                        }
-                    } else if (listener != null) {
-                        listener.onProgressChanged();
-                    }
-                }
-                return true;
+                return handleTouchUp(x, y);
         }
 
         return super.onTouchEvent(event);
     }
 
-    private void movePiece(int fromRow, int fromCol, int toRow, int toCol) {
-        PuzzlePiece movingPiece = grid[fromRow][fromCol];
+    private boolean handleTouchDown(float x, float y) {
+        if (x < gridX || x >= gridX + gridWidth || y < gridY || y >= gridY + gridHeight) {
+            return false;
+        }
 
-        if (movingPiece == null) return;
+        int col = (int) Math.floor((x - gridX) / cellWidth);
+        int row = (int) Math.floor((y - gridY) / cellHeight);
 
-        Log.d(TAG, "Moving piece from [" + fromRow + "," + fromCol + "] to [" + toRow + "," + toCol + "]");
+        if (row < 0 || row >= config.gridSize || col < 0 || col >= config.gridSize) {
+            return false;
+        }
 
-        List<PuzzlePiece> connectedGroup = getConnectedGroup(movingPiece);
+        PuzzlePiece piece = grid[row][col];
 
-        if (connectedGroup.size() > 1) {
-            if (canMoveGroup(connectedGroup, fromRow, fromCol, toRow, toCol)) {
-                moveGroup(connectedGroup, fromRow, fromCol, toRow, toCol);
-            } else {
-                breakConnectionsForPiece(movingPiece);
-                swapPieces(fromRow, fromCol, toRow, toCol);
+        if (piece == null) {
+            return false;
+        }
+
+        // FIX: Không cho kéo mảnh locked
+        if (piece.isLocked()) {
+            Log.d(TAG, "Piece at [" + row + "," + col + "] is locked - cannot drag");
+            return false;
+        }
+
+        float cellLeft = gridX + col * cellWidth;
+        float cellTop = gridY + row * cellHeight;
+        float cellRight = cellLeft + cellWidth;
+        float cellBottom = cellTop + cellHeight;
+
+        if (x >= cellLeft && x < cellRight && y >= cellTop && y < cellBottom) {
+            draggedPiece = piece;
+            draggedFromRow = row;
+            draggedFromCol = col;
+            dragOffsetX = x - cellLeft;
+            dragOffsetY = y - cellTop;
+            draggedPieceX = cellLeft;
+            draggedPieceY = cellTop;
+            isDragging = true;
+
+            Log.d(TAG, "Started dragging piece[" + piece.getCorrectRow() + "," +
+                    piece.getCorrectCol() + "] from grid[" + row + "," + col + "]");
+
+            invalidate();
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean handleTouchMove(float x, float y) {
+        if (!isDragging || draggedPiece == null) {
+            return false;
+        }
+
+        draggedPieceX = x - dragOffsetX;
+        draggedPieceY = y - dragOffsetY;
+        invalidate();
+        return true;
+    }
+
+    private boolean handleTouchUp(float x, float y) {
+        if (!isDragging || draggedPiece == null) {
+            return false;
+        }
+
+        try {
+            float centerX = draggedPieceX + cellWidth / 2f;
+            float centerY = draggedPieceY + cellHeight / 2f;
+
+            int dropCol = (int) Math.floor((centerX - gridX) / cellWidth);
+            int dropRow = (int) Math.floor((centerY - gridY) / cellHeight);
+
+            // Clamp to valid range
+            dropCol = Math.max(0, Math.min(dropCol, config.gridSize - 1));
+            dropRow = Math.max(0, Math.min(dropRow, config.gridSize - 1));
+
+            Log.d(TAG, "Dropped piece from [" + draggedFromRow + "," + draggedFromCol +
+                    "] to [" + dropRow + "," + dropCol + "]");
+
+            // Only move if position changed
+            if (dropRow != draggedFromRow || dropCol != draggedFromCol) {
+                movePiece(draggedFromRow, draggedFromCol, dropRow, dropCol);
             }
-        } else {
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in handleTouchUp", e);
+        } finally {
+            // Always cleanup
+            draggedPiece = null;
+            isDragging = false;
+            invalidate();
+        }
+
+        // Check completion
+        try {
+            if (isPuzzleComplete()) {
+                if (listener != null) {
+                    listener.onPuzzleCompleted();
+                }
+            } else if (listener != null) {
+                listener.onProgressChanged();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error checking puzzle completion", e);
+        }
+
+        return true;
+    }
+
+    private void movePiece(int fromRow, int fromCol, int toRow, int toCol) {
+        try {
+            // Validate bounds
+            if (fromRow < 0 || fromRow >= config.gridSize ||
+                    fromCol < 0 || fromCol >= config.gridSize ||
+                    toRow < 0 || toRow >= config.gridSize ||
+                    toCol < 0 || toCol >= config.gridSize) {
+                Log.e(TAG, "Invalid move indices!");
+                return;
+            }
+
+            PuzzlePiece movingPiece = grid[fromRow][fromCol];
+            PuzzlePiece targetPiece = grid[toRow][toCol];
+
+            if (movingPiece == null) {
+                Log.w(TAG, "No piece at source position");
+                return;
+            }
+
+            // Check if moving piece is locked
+            if (movingPiece.isLocked()) {
+                Log.d(TAG, "Cannot move locked piece");
+                return;
+            }
+
+            // Check if target piece is locked
+            if (targetPiece != null && targetPiece.isLocked()) {
+                Log.d(TAG, "Cannot swap with locked piece at [" + toRow + "," + toCol + "]");
+                return;
+            }
+
+            Log.d(TAG, "Moving piece[" + movingPiece.getCorrectRow() + "," +
+                    movingPiece.getCorrectCol() + "] from grid[" + fromRow + "," + fromCol +
+                    "] to grid[" + toRow + "," + toCol + "]");
+
             swapPieces(fromRow, fromCol, toRow, toCol);
+            checkAllConnections();
+            checkLocking();
+
+            if (listener != null) {
+                listener.onPieceConnected();
+            }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in movePiece", e);
+            e.printStackTrace();
         }
-
-        checkAllConnections();
-        checkLocking();
-
-        if (listener != null) {
-            listener.onPieceConnected();
-        }
-    }
-
-    private List<PuzzlePiece> getConnectedGroup(PuzzlePiece piece) {
-        List<PuzzlePiece> group = new ArrayList<>();
-        buildConnectedGroup(piece, group);
-        return group;
-    }
-
-    private void buildConnectedGroup(PuzzlePiece piece, List<PuzzlePiece> group) {
-        if (group.contains(piece)) return;
-        group.add(piece);
-
-        for (PuzzlePiece connected : piece.getConnectedPieces()) {
-            buildConnectedGroup(connected, group);
-        }
-    }
-
-    private boolean canMoveGroup(List<PuzzlePiece> group, int fromRow, int fromCol, int toRow, int toCol) {
-        return group.size() == 1;
-    }
-
-    private void moveGroup(List<PuzzlePiece> group, int fromRow, int fromCol, int toRow, int toCol) {
-        swapPieces(fromRow, fromCol, toRow, toCol);
     }
 
     private void swapPieces(int fromRow, int fromCol, int toRow, int toCol) {
-        PuzzlePiece temp = grid[fromRow][fromCol];
-        grid[fromRow][fromCol] = grid[toRow][toCol];
-        grid[toRow][toCol] = temp;
+        try {
+            // Validate indices
+            if (fromRow < 0 || fromRow >= config.gridSize ||
+                    fromCol < 0 || fromCol >= config.gridSize ||
+                    toRow < 0 || toRow >= config.gridSize ||
+                    toCol < 0 || toCol >= config.gridSize) {
+                Log.e(TAG, "Invalid swap indices: from[" + fromRow + "," + fromCol +
+                        "] to[" + toRow + "," + toCol + "]");
+                return;
+            }
 
-        Log.d(TAG, "Swapped [" + fromRow + "," + fromCol + "] <-> [" + toRow + "," + toCol + "]");
-    }
+            // Perform swap
+            PuzzlePiece temp = grid[fromRow][fromCol];
+            grid[fromRow][fromCol] = grid[toRow][toCol];
+            grid[toRow][toCol] = temp;
 
-    private void breakConnectionsForPiece(PuzzlePiece piece) {
-        List<PuzzlePiece> connected = new ArrayList<>(piece.getConnectedPieces());
-        for (PuzzlePiece other : connected) {
-            piece.removeConnectedPiece(other);
-            other.removeConnectedPiece(piece);
-            Log.d(TAG, "Broke connection between pieces");
+            Log.d(TAG, "Swapped grid[" + fromRow + "," + fromCol + "] <-> grid[" +
+                    toRow + "," + toCol + "]");
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in swapPieces", e);
+            e.printStackTrace();
         }
     }
 
     private void checkAllConnections() {
-        for (PuzzlePiece piece : allPieces) {
-            piece.getConnectedPieces().clear();
-        }
-
-        for (int row = 0; row < config.gridSize; row++) {
-            for (int col = 0; col < config.gridSize; col++) {
-                PuzzlePiece piece = grid[row][col];
-                if (piece == null) continue;
-
-                if (col < config.gridSize - 1) {
-                    PuzzlePiece right = grid[row][col + 1];
-                    if (right != null && shouldConnect(piece, right, row, col, row, col + 1)) {
-                        piece.addConnectedPiece(right);
-                        right.addConnectedPiece(piece);
-                    }
+        try {
+            // Clear all connections
+            for (PuzzlePiece piece : allPieces) {
+                if (piece != null) {
+                    piece.getConnectedPieces().clear();
                 }
+            }
 
-                if (row < config.gridSize - 1) {
-                    PuzzlePiece bottom = grid[row + 1][col];
-                    if (bottom != null && shouldConnect(piece, bottom, row, col, row + 1, col)) {
-                        piece.addConnectedPiece(bottom);
-                        bottom.addConnectedPiece(piece);
+            // Check horizontal and vertical adjacency
+            for (int row = 0; row < config.gridSize; row++) {
+                for (int col = 0; col < config.gridSize; col++) {
+                    PuzzlePiece piece = grid[row][col];
+                    if (piece == null) continue;
+
+                    // Check right neighbor
+                    if (col < config.gridSize - 1) {
+                        PuzzlePiece right = grid[row][col + 1];
+                        if (right != null && shouldConnect(piece, right, row, col, row, col + 1)) {
+                            piece.addConnectedPiece(right);
+                            right.addConnectedPiece(piece);
+                        }
+                    }
+
+                    // Check bottom neighbor
+                    if (row < config.gridSize - 1) {
+                        PuzzlePiece bottom = grid[row + 1][col];
+                        if (bottom != null && shouldConnect(piece, bottom, row, col, row + 1, col)) {
+                            piece.addConnectedPiece(bottom);
+                            bottom.addConnectedPiece(piece);
+                        }
                     }
                 }
             }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in checkAllConnections", e);
+            e.printStackTrace();
         }
     }
 
@@ -385,18 +517,25 @@ public class PuzzleView extends View {
     }
 
     private void checkLocking() {
-        if (!config.autoLockCorrectPieces) return;
+        try {
+            if (!config.autoLockCorrectPieces) return;
 
-        for (int row = 0; row < config.gridSize; row++) {
-            for (int col = 0; col < config.gridSize; col++) {
-                PuzzlePiece piece = grid[row][col];
-                if (piece != null && !piece.isLocked()) {
-                    if (piece.getCorrectRow() == row && piece.getCorrectCol() == col) {
-                        piece.setLocked(true);
-                        Log.d(TAG, "Locked piece at correct position [" + row + "," + col + "]");
+            for (int row = 0; row < config.gridSize; row++) {
+                for (int col = 0; col < config.gridSize; col++) {
+                    PuzzlePiece piece = grid[row][col];
+                    if (piece != null && !piece.isLocked()) {
+                        if (piece.getCorrectRow() == row && piece.getCorrectCol() == col) {
+                            piece.setLocked(true);
+                            vibratePiece();
+                            Log.d(TAG, "Locked piece at correct position [" + row + "," + col + "]");
+                        }
                     }
                 }
             }
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in checkLocking", e);
+            e.printStackTrace();
         }
     }
 
@@ -436,8 +575,8 @@ public class PuzzleView extends View {
             for (int col = 0; col < config.gridSize; col++) {
                 PuzzlePiece piece = grid[row][col];
                 if (piece != null) {
-                    float x = gridX + col * cellSize;
-                    float y = gridY + row * cellSize;
+                    float x = gridX + col * cellWidth;
+                    float y = gridY + row * cellHeight;
                     saveData.piecePositions.add(new GameSaveData.PiecePosition(
                             piece.getCorrectRow(),
                             piece.getCorrectCol(),
@@ -459,8 +598,8 @@ public class PuzzleView extends View {
                 if (piece.getCorrectRow() == pos.correctRow &&
                         piece.getCorrectCol() == pos.correctCol) {
 
-                    int col = Math.round((pos.x - gridX) / cellSize);
-                    int row = Math.round((pos.y - gridY) / cellSize);
+                    int col = Math.round((pos.x - gridX) / cellWidth);
+                    int row = Math.round((pos.y - gridY) / cellHeight);
 
                     if (row >= 0 && row < config.gridSize && col >= 0 && col < config.gridSize) {
                         grid[row][col] = piece;
@@ -485,10 +624,11 @@ public class PuzzleView extends View {
             allPieces.clear();
         }
         grid = null;
+        draggedPiece = null;
+        isDragging = false;
         Log.d(TAG, "Cleanup completed");
     }
 
-    // Trong checkCorrectPositions() hoặc khi piece snap:
     private void vibratePiece() {
         if (SettingsActivity.isVibrationEnabled(getContext())) {
             Vibrator vibrator = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);

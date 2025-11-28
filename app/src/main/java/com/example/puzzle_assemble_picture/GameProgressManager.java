@@ -21,10 +21,10 @@ public class GameProgressManager {
     public static final int TOTAL_ACHIEVEMENTS = 10;
 
     // Game constants
-    public static final int MAX_LEVEL = 100;
-    public static final int UNLOCK_NORMAL_AT = 5;
-    public static final int UNLOCK_HARD_AT = 15;
-    public static final int UNLOCK_INSANE_AT = 30;
+    public static final int MAX_LEVEL = 300;
+    public static final int UNLOCK_NORMAL_AT = 20;
+    public static final int UNLOCK_HARD_AT = 20;
+    public static final int UNLOCK_INSANE_AT = 20;
 
     private SharedPreferences prefs;
     private Gson gson;
@@ -172,11 +172,22 @@ public class GameProgressManager {
      * Get grid size based on level
      */
     public int getGridSizeForLevel(int level) {
-        if (level <= 10) return 3;        // Level 1-10: 3x3
-        else if (level <= 25) return 4;   // Level 11-25: 4x4
-        else if (level <= 50) return 5;   // Level 26-50: 5x5
-        else if (level <= 75) return 6;   // Level 51-75: 6x6
-        else return 7;                     // Level 76-100: 7x7
+        // Bắt đầu từ 5x5, tăng dần
+        if (level <= 5) {
+            return 5;  // Level 1-5: 5×5 (25 pieces)
+        } else if (level <= 10) {
+            return 6;  // Level 6-10: 6×6 (36 pieces)
+        } else if (level <= 15) {
+            return 7;  // Level 11-15: 7×7 (49 pieces)
+        } else if (level <= 20) {
+            return 8;  // Level 16-20: 8×8 (64 pieces)
+        } else if (level <= 25) {
+            return 9;  // Level 21-25: 9×9 (81 pieces)
+        } else if (level <= 30) {
+            return 10; // Level 26-30: 10×10 (100 pieces)
+        } else {
+            return 11; // Level 31+: 11×11 (121 pieces)
+        }
     }
 
     // ===== GALLERY METHODS =====

@@ -2,9 +2,10 @@
 <androidx.constraintlayout.widget.ConstraintLayout
         xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:ads="http://schemas.android.com/apk/res-auto"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@color/md_theme_light_background">
+        android:background="@drawable/game_background">
 
     <!-- Top Bar -->
     <com.google.android.material.card.MaterialCardView
@@ -16,12 +17,11 @@
             app:layout_constraintTop_toTopOf="parent">
 
         <LinearLayout
-                android:id="@+id/topBar"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                app:layout_constraintTop_toTopOf="parent">
-
+                android:padding="8dp"
+                android:gravity="center_vertical">
 
             <ImageButton
                     android:id="@+id/backButton"
@@ -35,19 +35,19 @@
                     android:id="@+id/levelText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Level 1 (3x3)"
+                    android:text="Level 1 (5x5)"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/md_theme_light_primary"
-                    android:layout_marginEnd="8dp" />
+                    android:layout_marginStart="8dp" />
 
             <TextView
                     android:id="@+id/progressText"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="0/9 correct"
-                    android:textSize="16sp"
+                    android:text="0/25 correct"
+                    android:textSize="14sp"
                     android:textColor="@color/md_theme_light_onBackground"
                     android:gravity="center"
                     android:layout_marginHorizontal="8dp" />
@@ -55,25 +55,38 @@
             <Button
                     android:id="@+id/hintButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="40dp"
-                    android:text="💡 Hint"
-                    android:textSize="14sp"
+                    android:layout_height="36dp"
+                    android:text="💡"
+                    android:textSize="18sp"
+                    android:paddingHorizontal="12dp"
                     style="@style/Widget.Material3.Button.TextButton" />
 
         </LinearLayout>
 
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Sample Image (for Easy and Normal modes) -->
+    <!-- Puzzle View - Chiều dọc -->
+    <com.example.puzzle_assemble_picture.PuzzleView
+            android:id="@+id/puzzleView"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_margin="16dp"
+            app:layout_constraintTop_toBottomOf="@id/topBar"
+            app:layout_constraintBottom_toTopOf="@id/buttonBar"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Sample Image Thumbnail - Z-index cao hơn để nổi lên trên -->
     <com.google.android.material.card.MaterialCardView
             android:id="@+id/sampleCard"
-            android:layout_width="120dp"
-            android:layout_height="120dp"
-            android:layout_margin="16dp"
+            android:layout_width="80dp"
+            android:layout_height="100dp"
+            android:layout_margin="12dp"
+            android:elevation="12dp"
             app:cardCornerRadius="8dp"
-            app:cardElevation="8dp"
+            app:cardElevation="12dp"
             app:layout_constraintTop_toBottomOf="@id/topBar"
-            app:layout_constraintEnd_toEndOf="parent">
+            app:layout_constraintStart_toStartOf="parent">
 
         <ImageView
                 android:id="@+id/sampleImageView"
@@ -85,38 +98,96 @@
 
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Puzzle View -->
-    <com.example.puzzle_assemble_picture.PuzzleView
-            android:id="@+id/puzzleView"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            app:layout_constraintTop_toBottomOf="@id/topBar"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-
-    <!-- Save Button (FAB) -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/saveButton"
-            android:layout_width="wrap_content"
+    <!-- Button Bar - Ngang phía trên ads với button style mới -->
+    <LinearLayout
+            android:id="@+id/buttonBar"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_margin="24dp"
-            android:src="@android:drawable/ic_menu_save"
-            app:tint="@color/white"
-            app:layout_constraintBottom_toTopOf="@id/checkButton"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:contentDescription="Save game" />
+            android:orientation="horizontal"
+            android:padding="12dp"
+            android:gravity="center"
+            android:weightSum="2"
+            app:layout_constraintBottom_toTopOf="@id/adViewContainer">
 
-    <!-- Check Button (FAB) -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/checkButton"
-            android:layout_width="wrap_content"
+        <!-- Save Button - Style giống Custom Mode -->
+        <Button
+                android:id="@+id/saveButton"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:text="💾 Save"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_marginEnd="6dp" />
+
+        <!-- Check Button - Style giống Custom Mode -->
+        <Button
+                android:id="@+id/checkButton"
+                android:layout_width="0dp"
+                android:layout_height="56dp"
+                android:layout_weight="1"
+                android:text="✓ Check"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_marginStart="6dp" />
+
+    </LinearLayout>
+
+    <!-- AdMob Banner Container -->
+    <FrameLayout
+            android:id="@+id/adViewContainer"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_margin="24dp"
-            android:src="@android:drawable/ic_menu_info_details"
-            app:tint="@color/white"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:contentDescription="Check progress" />
+            android:background="#FFFFFF"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+        <com.google.android.gms.ads.AdView
+                android:id="@+id/adView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                ads:adSize="BANNER"
+                ads:adUnitId="ca-app-pub-3940256099942544/6300978111" />
+
+    </FrameLayout>
+
+    <!-- Fullscreen Sample Image Overlay -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/fullscreenOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#DD000000"
+            android:visibility="gone"
+            android:clickable="true"
+            android:focusable="true"
+            android:elevation="20dp">
+
+        <ImageView
+                android:id="@+id/fullscreenImageView"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_margin="32dp"
+                android:scaleType="fitCenter"
+                android:contentDescription="Full sample image"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+        <TextView
+                android:id="@+id/closeHint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tap to close"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:alpha="0.7"
+                android:layout_margin="16dp"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

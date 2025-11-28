@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 import java.util.List;
+import com.google.android.gms.ads.AdView;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -19,6 +20,7 @@ public class MainActivity extends AppCompatActivity {
     private Button btnSettings;
     private TextView progressText;
     private GameProgressManager progressManager;
+    private AdView adView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,8 +51,23 @@ public class MainActivity extends AppCompatActivity {
         btnAchievements.setOnClickListener(v -> openAchievements());
         btnSettings.setOnClickListener(v -> openSettings());
 
+        // Initialize AdMob
+        AdMobHelper.initialize(this);
+
+        // Load Banner Ad
+        adView = findViewById(R.id.adView);
+        AdMobHelper.loadBannerAd(adView);
+
         // Debug button (optional - remove in production)
-        findViewById(R.id.btnDebug).setOnClickListener(v -> showDebugInfo());
+//        findViewById(R.id.btnDebug).setOnClickListener(v -> showDebugInfo());
+    }
+
+    @Override
+    protected void onPause() {
+        if (adView != null) {
+            adView.pause();
+        }
+        super.onPause();
     }
 
     @Override
@@ -61,6 +78,16 @@ public class MainActivity extends AppCompatActivity {
         ModeSelectAdapter adapter = new ModeSelectAdapter(modes, this::onModeSelected);
         modeRecyclerView.setAdapter(adapter);
         updateProgressText();
+        if (adView != null) {
+            adView.resume();
+        }
+    }
+
+    protected void onDestroy() {
+        if (adView != null) {
+            adView.destroy();
+        }
+        super.onDestroy();
     }
 
     private List<GameMode> createModeList() {

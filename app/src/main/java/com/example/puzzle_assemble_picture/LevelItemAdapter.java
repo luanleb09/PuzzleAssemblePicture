@@ -1,6 +1,5 @@
 package com.example.puzzle_assemble_picture;
 
-import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -36,7 +35,56 @@ public class LevelItemAdapter extends RecyclerView.Adapter<LevelItemAdapter.View
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         LevelSelectionActivity.LevelItem item = items.get(position);
-        holder.bind(item, listener);
+
+        holder.levelNumber.setText(String.valueOf(item.levelNumber));
+        holder.gridSize.setText(item.gridSize + "×" + item.gridSize);
+
+        // Reset visibility
+        holder.lockIcon.setVisibility(View.GONE);
+        holder.checkIcon.setVisibility(View.GONE);
+        holder.saveIcon.setVisibility(View.GONE);
+        holder.downloadIcon.setVisibility(View.GONE);
+        holder.overlay.setVisibility(View.GONE);
+
+        // Xử lý trạng thái level
+        if (!item.isUnlocked) {
+            // Level bị khóa
+            holder.cardView.setCardBackgroundColor(0xFF424242);
+            holder.levelNumber.setTextColor(0xFF757575);
+            holder.gridSize.setTextColor(0xFF757575);
+            holder.lockIcon.setVisibility(View.VISIBLE);
+            holder.overlay.setVisibility(View.VISIBLE);
+
+        } else if (item.isCompleted) {
+            // Level đã hoàn thành
+            holder.cardView.setCardBackgroundColor(0xFF4CAF50);
+            holder.levelNumber.setTextColor(0xFFFFFFFF);
+            holder.gridSize.setTextColor(0xFFE8F5E9);
+            holder.checkIcon.setVisibility(View.VISIBLE);
+
+            // Hiển thị save icon nếu có
+            if (item.hasSave) {
+                holder.saveIcon.setVisibility(View.VISIBLE);
+            }
+
+        } else {
+            // Level đang chơi (unlocked nhưng chưa hoàn thành)
+            holder.cardView.setCardBackgroundColor(0xFF2196F3);
+            holder.levelNumber.setTextColor(0xFFFFFFFF);
+            holder.gridSize.setTextColor(0xFFBBDEFB);
+
+            // Hiển thị save icon nếu có
+            if (item.hasSave) {
+                holder.saveIcon.setVisibility(View.VISIBLE);
+            }
+
+            // THÊM: Hiển thị download icon nếu cần
+            if (item.needsDownload) {
+                holder.downloadIcon.setVisibility(View.VISIBLE);
+            }
+        }
+
+        holder.cardView.setOnClickListener(v -> listener.onLevelClick(item));
     }
 
     @Override
@@ -45,66 +93,25 @@ public class LevelItemAdapter extends RecyclerView.Adapter<LevelItemAdapter.View
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        MaterialCardView card;
+        MaterialCardView cardView;
         TextView levelNumber;
         TextView gridSize;
         ImageView lockIcon;
         ImageView checkIcon;
         ImageView saveIcon;
+        ImageView downloadIcon;
         View overlay;
 
-        ViewHolder(View itemView) {
-            super(itemView);
-            card = itemView.findViewById(R.id.levelCard);
-            levelNumber = itemView.findViewById(R.id.levelNumber);
-            gridSize = itemView.findViewById(R.id.gridSize);
-            lockIcon = itemView.findViewById(R.id.lockIcon);
-            checkIcon = itemView.findViewById(R.id.checkIcon);
-            saveIcon = itemView.findViewById(R.id.saveIcon);
-            overlay = itemView.findViewById(R.id.overlay);
-        }
-
-        void bind(LevelSelectionActivity.LevelItem item, OnLevelClickListener listener) {
-            levelNumber.setText(String.valueOf(item.levelNumber));
-            gridSize.setText(item.gridSize + "x" + item.gridSize);
-
-            if (item.isCompleted) {
-                // Completed level - green with check mark
-                card.setCardBackgroundColor(Color.parseColor("#4CAF50"));
-                card.setAlpha(1.0f);
-                levelNumber.setTextColor(Color.WHITE);
-                gridSize.setTextColor(Color.WHITE);
-                lockIcon.setVisibility(View.GONE);
-                checkIcon.setVisibility(View.VISIBLE);
-                saveIcon.setVisibility(item.hasSave ? View.VISIBLE : View.GONE);
-                overlay.setVisibility(View.GONE);
-            } else if (item.isUnlocked) {
-                // Current unlocked level - blue, no lock
-                card.setCardBackgroundColor(Color.parseColor("#2196F3"));
-                card.setAlpha(1.0f);
-                levelNumber.setTextColor(Color.WHITE);
-                gridSize.setTextColor(Color.WHITE);
-                lockIcon.setVisibility(View.GONE);
-                checkIcon.setVisibility(View.GONE);
-                saveIcon.setVisibility(item.hasSave ? View.VISIBLE : View.GONE);
-                overlay.setVisibility(View.GONE);
-            } else {
-                // Locked level - blue with lock icon and overlay
-                card.setCardBackgroundColor(Color.parseColor("#2196F3"));
-                card.setAlpha(0.6f);
-                levelNumber.setTextColor(Color.WHITE);
-                gridSize.setTextColor(Color.WHITE);
-                lockIcon.setVisibility(View.VISIBLE);
-                checkIcon.setVisibility(View.GONE);
-                saveIcon.setVisibility(View.GONE);
-                overlay.setVisibility(View.VISIBLE);
-            }
-
-            card.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onLevelClick(item);
-                }
-            });
+        ViewHolder(View view) {
+            super(view);
+            cardView = view.findViewById(R.id.levelCard);
+            levelNumber = view.findViewById(R.id.levelNumber);
+            gridSize = view.findViewById(R.id.gridSize);
+            lockIcon = view.findViewById(R.id.lockIcon);
+            checkIcon = view.findViewById(R.id.checkIcon);
+            saveIcon = view.findViewById(R.id.saveIcon);
+            downloadIcon = view.findViewById(R.id.downloadIcon);
+            overlay = view.findViewById(R.id.overlay);
         }
     }
 }

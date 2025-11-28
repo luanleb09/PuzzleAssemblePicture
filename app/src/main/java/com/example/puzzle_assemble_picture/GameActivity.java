@@ -2,7 +2,6 @@ package com.example.puzzle_assemble_picture;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.util.Log;
@@ -12,6 +11,12 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdView;
+import com.google.android.gms.ads.MobileAds;
+import android.view.View;
+import android.widget.ImageView;
+
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -20,13 +25,14 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 public class GameActivity extends AppCompatActivity {
 
     private static final String TAG = "GameActivity";
+    // MAX_IMAGE_SIZE đã được định nghĩa trong PuzzleImageLoader
 
     private PuzzleView puzzleView;
     private ImageView sampleImageView;
     private TextView progressText;
     private TextView levelText;
-    private FloatingActionButton checkButton;
-    private FloatingActionButton saveButton;
+    private Button checkButton;
+    private Button saveButton;
     private Button hintButton;
 
     private int currentLevel;
@@ -35,16 +41,13 @@ public class GameActivity extends AppCompatActivity {
     private MediaPlayer successSound;
     private MediaPlayer clickSound;
     private GameProgressManager progressManager;
+    private PuzzleImageLoader imageLoader;
     private Bitmap currentPuzzleBitmap;
+    private android.app.ProgressDialog downloadDialog;
 
-    private final int[] puzzleImages = {
-            R.drawable.puzzle_sample,
-            R.drawable.puzzle_1,
-            R.drawable.puzzle_2,
-            R.drawable.puzzle_3,
-            R.drawable.puzzle_4,
-            R.drawable.puzzle_5
-    };
+    private AdView adView;
+    private View fullscreenOverlay;
+    private ImageView fullscreenImageView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,7 +66,8 @@ public class GameActivity extends AppCompatActivity {
             Log.d(TAG, "✓ Intent data - Level: " + currentLevel + ", Mode: " + gameMode);
 
             progressManager = new GameProgressManager(this);
-            Log.d(TAG, "✓ ProgressManager created");
+            imageLoader = new PuzzleImageLoader(this);
+            Log.d(TAG, "✓ ProgressManager & ImageLoader created");
 
             // Default to EASY if no mode specified
             if (gameMode == null || gameMode.isEmpty()) {
@@ -86,14 +90,6 @@ public class GameActivity extends AppCompatActivity {
             Log.d(TAG, "✓ All views initialized");
 
             initSounds();
-
-            // Initialize sounds (commented out if not available)
-//            try {
-//                successSound = MediaPlayer.create(this, R.raw.success_sound);
-//                clickSound = MediaPlayer.create(this, R.raw.click_sound);
-//            } catch (Exception e) {
-//                Log.e(TAG, "Sound initialization failed", e);
-//            }
 
             levelText.setText("Level " + currentLevel + " (" + gridSize + "x" + gridSize + ")");
 
@@ -120,9 +116,31 @@ public class GameActivity extends AppCompatActivity {
             Toast.makeText(this, "Error loading game: " + e.getMessage(), Toast.LENGTH_LONG).show();
             finish();
         }
+        // Initialize AdMob
+        MobileAds.initialize(this, initializationStatus -> {
+            Log.d(TAG, "AdMob initialized");
+        });
+
+        // Setup AdMob Banner
+        adView = findViewById(R.id.adView);
+        AdRequest adRequest = new AdRequest.Builder().build();
+        adView.loadAd(adRequest);
+
+        // Setup fullscreen overlay
+        fullscreenOverlay = findViewById(R.id.fullscreenOverlay);
+        fullscreenImageView = findViewById(R.id.fullscreenImageView);
+
+        // Click sample image to show fullscreen
+        sampleImageView.setOnClickListener(v -> {
+            if (currentPuzzleBitmap != null) {
+                showFullscreenImage();
+            }
+        });
+
+        // Click overlay to close
+        fullscreenOverlay.setOnClickListener(v -> hideFullscreenImage());
+
     }
-
-
 
     private void showLoadGameDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -143,79 +161,81 @@ public class GameActivity extends AppCompatActivity {
         // Clean up old bitmap
         recycleBitmap();
 
-        int imageIndex = (currentLevel - 1) % puzzleImages.length;
-        Log.d(TAG, "Loading image index: " + imageIndex);
-
-        // Decode with options
-        BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inJustDecodeBounds = true;
-        BitmapFactory.decodeResource(getResources(), puzzleImages[imageIndex], options);
-
-        int imageWidth = options.outWidth;
-        int imageHeight = options.outHeight;
-        int maxSize = 1200;
-
-        Log.d(TAG, "Original image size: " + imageWidth + "x" + imageHeight);
-
-        if (imageWidth > maxSize || imageHeight > maxSize) {
-            options.inSampleSize = calculateInSampleSize(options, maxSize, maxSize);
-            Log.d(TAG, "Scaling down with inSampleSize: " + options.inSampleSize);
+        // Hiển thị download dialog nếu cần
+        if (imageLoader.needsDownload(currentLevel)) {
+            showDownloadDialog();
         }
 
-        options.inJustDecodeBounds = false;
-        options.inPreferredConfig = Bitmap.Config.RGB_565;
+        // Load image từ assets hoặc asset pack
+        imageLoader.loadLevelImage(currentLevel, new PuzzleImageLoader.ImageLoadCallback() {
+            @Override
+            public void onSuccess(Bitmap bitmap) {
+                dismissDownloadDialog();
 
-        currentPuzzleBitmap = BitmapFactory.decodeResource(getResources(), puzzleImages[imageIndex], options);
-
-        if (currentPuzzleBitmap == null) {
-            Log.e(TAG, "Failed to decode bitmap!");
-            Toast.makeText(this, "Error loading puzzle image!", Toast.LENGTH_LONG).show();
-            finish();
-            return;
-        }
-
-        Log.d(TAG, "Bitmap loaded: " + currentPuzzleBitmap.getWidth() + "x" + currentPuzzleBitmap.getHeight());
-
-        PuzzleConfig config = createConfigForMode(gameMode);
-        config.gridSize = gridSize;
-
-        if (config.showSample) {
-            sampleImageView.setVisibility(View.VISIBLE);
-            sampleImageView.setImageBitmap(currentPuzzleBitmap);
-            Log.d(TAG, "Sample image visible");
-        } else {
-            sampleImageView.setVisibility(View.GONE);
-            Log.d(TAG, "Sample image hidden");
-        }
-
-        // Wait for view to be laid out
-        puzzleView.getViewTreeObserver().addOnGlobalLayoutListener(
-                new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
-                    @Override
-                    public void onGlobalLayout() {
-                        puzzleView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
-
-                        Log.d(TAG, "PuzzleView size: " + puzzleView.getWidth() + "x" + puzzleView.getHeight());
-
-                        if (puzzleView.getWidth() == 0 || puzzleView.getHeight() == 0) {
-                            Log.e(TAG, "PuzzleView has zero dimensions!");
-                            Toast.makeText(GameActivity.this, "Error: View not ready", Toast.LENGTH_SHORT).show();
-                            finish();
-                            return;
-                        }
-
-                        try {
-                            puzzleView.initPuzzle(currentPuzzleBitmap, config, createPuzzleListener());
-                            updateProgress();
-                            Log.d(TAG, "Puzzle initialized successfully");
-                        } catch (Exception e) {
-                            Log.e(TAG, "Error initializing puzzle", e);
-                            Toast.makeText(GameActivity.this, "Error setting up puzzle: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                            finish();
-                        }
-                    }
+                if (bitmap == null) {
+                    Toast.makeText(GameActivity.this, "Error: Bitmap is null!", Toast.LENGTH_LONG).show();
+                    finish();
+                    return;
                 }
-        );
+
+                currentPuzzleBitmap = bitmap;
+                Log.d(TAG, "Bitmap loaded: " + bitmap.getWidth() + "x" + bitmap.getHeight());
+
+                PuzzleConfig config = createConfigForMode(gameMode);
+                config.gridSize = gridSize;
+
+                if (config.showSample) {
+                    sampleImageView.setVisibility(View.VISIBLE);
+                    sampleImageView.setImageBitmap(currentPuzzleBitmap);
+                    Log.d(TAG, "Sample image visible");
+                } else {
+                    sampleImageView.setVisibility(View.GONE);
+                    Log.d(TAG, "Sample image hidden");
+                }
+
+                // Wait for view to be laid out
+                puzzleView.getViewTreeObserver().addOnGlobalLayoutListener(
+                        new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+                            @Override
+                            public void onGlobalLayout() {
+                                puzzleView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+
+                                Log.d(TAG, "PuzzleView size: " + puzzleView.getWidth() + "x" + puzzleView.getHeight());
+
+                                if (puzzleView.getWidth() == 0 || puzzleView.getHeight() == 0) {
+                                    Log.e(TAG, "PuzzleView has zero dimensions!");
+                                    Toast.makeText(GameActivity.this, "Error: View not ready", Toast.LENGTH_SHORT).show();
+                                    finish();
+                                    return;
+                                }
+
+                                try {
+                                    puzzleView.initPuzzle(currentPuzzleBitmap, config, createPuzzleListener());
+                                    updateProgress();
+                                    Log.d(TAG, "Puzzle initialized successfully");
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Error initializing puzzle", e);
+                                    Toast.makeText(GameActivity.this, "Error setting up puzzle: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                                    finish();
+                                }
+                            }
+                        }
+                );
+            }
+
+            @Override
+            public void onError(String error) {
+                dismissDownloadDialog();
+                Log.e(TAG, "Failed to load image: " + error);
+                Toast.makeText(GameActivity.this, "Failed to load puzzle image: " + error, Toast.LENGTH_LONG).show();
+                finish();
+            }
+
+            @Override
+            public void onDownloadProgress(int progress) {
+                updateDownloadProgress(progress);
+            }
+        });
     }
 
     private void loadSavedGame() {
@@ -232,80 +252,107 @@ public class GameActivity extends AppCompatActivity {
 
         recycleBitmap();
 
-        int imageIndex = (currentLevel - 1) % puzzleImages.length;
-        Log.d(TAG, "Loading image index: " + imageIndex);
-
-        BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inJustDecodeBounds = true;
-        BitmapFactory.decodeResource(getResources(), puzzleImages[imageIndex], options);
-
-        int imageWidth = options.outWidth;
-        int imageHeight = options.outHeight;
-        int maxSize = 1200;
-
-        Log.d(TAG, "Original image size: " + imageWidth + "x" + imageHeight);
-
-        if (imageWidth > maxSize || imageHeight > maxSize) {
-            options.inSampleSize = calculateInSampleSize(options, maxSize, maxSize);
-            Log.d(TAG, "Scaling down with inSampleSize: " + options.inSampleSize);
+        // Hiển thị download dialog nếu cần
+        if (imageLoader.needsDownload(currentLevel)) {
+            showDownloadDialog();
         }
 
-        options.inJustDecodeBounds = false;
-        options.inPreferredConfig = Bitmap.Config.RGB_565;
+        // Load image
+        imageLoader.loadLevelImage(currentLevel, new PuzzleImageLoader.ImageLoadCallback() {
+            @Override
+            public void onSuccess(Bitmap bitmap) {
+                dismissDownloadDialog();
 
-        currentPuzzleBitmap = BitmapFactory.decodeResource(getResources(), puzzleImages[imageIndex], options);
-
-        if (currentPuzzleBitmap == null) {
-            Log.e(TAG, "Failed to decode bitmap!");
-            Toast.makeText(this, "Error loading puzzle image!", Toast.LENGTH_LONG).show();
-            finish();
-            return;
-        }
-
-        Log.d(TAG, "Bitmap loaded: " + currentPuzzleBitmap.getWidth() + "x" + currentPuzzleBitmap.getHeight());
-
-        PuzzleConfig config = createConfigForMode(gameMode);
-        config.gridSize = gridSize;
-
-        if (config.showSample) {
-            sampleImageView.setVisibility(View.VISIBLE);
-            sampleImageView.setImageBitmap(currentPuzzleBitmap);
-            Log.d(TAG, "Sample image visible");
-        } else {
-            sampleImageView.setVisibility(View.GONE);
-            Log.d(TAG, "Sample image hidden");
-        }
-
-        GameSaveData finalSaveData = saveData;
-        puzzleView.getViewTreeObserver().addOnGlobalLayoutListener(
-                new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
-                    @Override
-                    public void onGlobalLayout() {
-                        puzzleView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
-
-                        Log.d(TAG, "PuzzleView size: " + puzzleView.getWidth() + "x" + puzzleView.getHeight());
-
-                        if (puzzleView.getWidth() == 0 || puzzleView.getHeight() == 0) {
-                            Log.e(TAG, "PuzzleView has zero dimensions!");
-                            Toast.makeText(GameActivity.this, "Error: View not ready", Toast.LENGTH_SHORT).show();
-                            finish();
-                            return;
-                        }
-
-                        try {
-                            puzzleView.initPuzzle(currentPuzzleBitmap, config, createPuzzleListener());
-                            puzzleView.loadGameState(finalSaveData);
-                            updateProgress();
-                            Log.d(TAG, "Saved game loaded successfully");
-                            Toast.makeText(GameActivity.this, "Game loaded!", Toast.LENGTH_SHORT).show();
-                        } catch (Exception e) {
-                            Log.e(TAG, "Error loading saved game", e);
-                            Toast.makeText(GameActivity.this, "Error loading saved game: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                            finish();
-                        }
-                    }
+                if (bitmap == null) {
+                    Toast.makeText(GameActivity.this, "Error: Bitmap is null!", Toast.LENGTH_LONG).show();
+                    finish();
+                    return;
                 }
-        );
+
+                currentPuzzleBitmap = bitmap;
+                Log.d(TAG, "Bitmap loaded: " + bitmap.getWidth() + "x" + bitmap.getHeight());
+
+                PuzzleConfig config = createConfigForMode(gameMode);
+                config.gridSize = gridSize;
+
+                if (config.showSample) {
+                    sampleImageView.setVisibility(View.VISIBLE);
+                    sampleImageView.setImageBitmap(currentPuzzleBitmap);
+                    Log.d(TAG, "Sample image visible");
+                } else {
+                    sampleImageView.setVisibility(View.GONE);
+                    Log.d(TAG, "Sample image hidden");
+                }
+
+                puzzleView.getViewTreeObserver().addOnGlobalLayoutListener(
+                        new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+                            @Override
+                            public void onGlobalLayout() {
+                                puzzleView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+
+                                Log.d(TAG, "PuzzleView size: " + puzzleView.getWidth() + "x" + puzzleView.getHeight());
+
+                                if (puzzleView.getWidth() == 0 || puzzleView.getHeight() == 0) {
+                                    Log.e(TAG, "PuzzleView has zero dimensions!");
+                                    Toast.makeText(GameActivity.this, "Error: View not ready", Toast.LENGTH_SHORT).show();
+                                    finish();
+                                    return;
+                                }
+
+                                try {
+                                    puzzleView.initPuzzle(currentPuzzleBitmap, config, createPuzzleListener());
+                                    puzzleView.loadGameState(saveData);
+                                    updateProgress();
+                                    Log.d(TAG, "Saved game loaded successfully");
+                                    Toast.makeText(GameActivity.this, "Game loaded!", Toast.LENGTH_SHORT).show();
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Error loading saved game", e);
+                                    Toast.makeText(GameActivity.this, "Error loading saved game: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                                    finish();
+                                }
+                            }
+                        }
+                );
+            }
+
+            @Override
+            public void onError(String error) {
+                dismissDownloadDialog();
+                Log.e(TAG, "Failed to load image: " + error);
+                Toast.makeText(GameActivity.this, "Failed to load puzzle image: " + error, Toast.LENGTH_LONG).show();
+                finish();
+            }
+
+            @Override
+            public void onDownloadProgress(int progress) {
+                updateDownloadProgress(progress);
+            }
+        });
+    }
+
+    private void showDownloadDialog() {
+        if (downloadDialog == null) {
+            downloadDialog = new android.app.ProgressDialog(this);
+            downloadDialog.setTitle("Downloading Level " + currentLevel);
+            downloadDialog.setMessage("Preparing puzzle image...");
+            downloadDialog.setProgressStyle(android.app.ProgressDialog.STYLE_HORIZONTAL);
+            downloadDialog.setCancelable(false);
+            downloadDialog.setMax(100);
+        }
+        downloadDialog.show();
+    }
+
+    private void updateDownloadProgress(int progress) {
+        if (downloadDialog != null && downloadDialog.isShowing()) {
+            downloadDialog.setProgress(progress);
+            downloadDialog.setMessage("Downloading... " + progress + "%");
+        }
+    }
+
+    private void dismissDownloadDialog() {
+        if (downloadDialog != null && downloadDialog.isShowing()) {
+            downloadDialog.dismiss();
+        }
     }
 
     private PuzzleConfig createConfigForMode(String mode) {
@@ -474,7 +521,6 @@ public class GameActivity extends AppCompatActivity {
         builder.setPositiveButton("Next Level", (dialog, which) -> {
             int nextLevel = currentLevel + 1;
             if (nextLevel <= GameProgressManager.MAX_LEVEL) {
-                // Restart activity with next level
                 Intent intent = getIntent();
                 intent.putExtra("LEVEL", nextLevel);
                 intent.putExtra("MODE", gameMode);
@@ -537,22 +583,24 @@ public class GameActivity extends AppCompatActivity {
         }
     }
 
-    private int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
-        final int height = options.outHeight;
-        final int width = options.outWidth;
-        int inSampleSize = 1;
+    private void initSounds() {
+        try {
+            if (SettingsActivity.isSoundEnabled(this)) {
+                successSound = MediaPlayer.create(this, R.raw.success_sound);
+                clickSound = MediaPlayer.create(this, R.raw.click_sound);
 
-        if (height > reqHeight || width > reqWidth) {
-            final int halfHeight = height / 2;
-            final int halfWidth = width / 2;
-
-            while ((halfHeight / inSampleSize) >= reqHeight
-                    && (halfWidth / inSampleSize) >= reqWidth) {
-                inSampleSize *= 2;
+                if (successSound != null) {
+                    float volume = SettingsActivity.getSoundVolumeFloat(this);
+                    successSound.setVolume(volume, volume);
+                }
+                if (clickSound != null) {
+                    float volume = SettingsActivity.getSoundVolumeFloat(this);
+                    clickSound.setVolume(volume, volume);
+                }
             }
+        } catch (Exception e) {
+            Log.e(TAG, "Sound initialization failed", e);
         }
-
-        return inSampleSize;
     }
 
     @Override
@@ -569,6 +617,7 @@ public class GameActivity extends AppCompatActivity {
 
         Log.d(TAG, "onDestroy called");
 
+        dismissDownloadDialog();
         recycleBitmap();
 
         if (successSound != null) {
@@ -587,31 +636,50 @@ public class GameActivity extends AppCompatActivity {
                 Log.e(TAG, "Error cleaning up PuzzleView", e);
             }
         }
+
+        if (imageLoader != null) {
+            imageLoader.cancelDownloads();
+        }
+
+        if (adView != null) {
+            adView.destroy();
+        }
+    }
+
+    private void showFullscreenImage() {
+        if (currentPuzzleBitmap != null) {
+            fullscreenImageView.setImageBitmap(currentPuzzleBitmap);
+            fullscreenOverlay.setVisibility(View.VISIBLE);
+
+            // Animate fade in
+            fullscreenOverlay.setAlpha(0f);
+            fullscreenOverlay.animate()
+                    .alpha(1f)
+                    .setDuration(200)
+                    .start();
+        }
+    }
+
+    private void hideFullscreenImage() {
+        // Animate fade out
+        fullscreenOverlay.animate()
+                .alpha(0f)
+                .setDuration(200)
+                .withEndAction(() -> {
+                    fullscreenOverlay.setVisibility(View.GONE);
+                    fullscreenOverlay.setAlpha(1f);
+                })
+                .start();
     }
 
     @Override
     public void onBackPressed() {
-        showExitDialog();
-    }
-    private void initSounds() {
-        try {
-            // Chỉ init nếu sound được bật
-            if (SettingsActivity.isSoundEnabled(this)) {
-                successSound = MediaPlayer.create(this, R.raw.success_sound);
-                clickSound = MediaPlayer.create(this, R.raw.click_sound);
-
-                // Set volume theo settings
-                if (successSound != null) {
-                    float volume = SettingsActivity.getSoundVolumeFloat(this);
-                    successSound.setVolume(volume, volume);
-                }
-                if (clickSound != null) {
-                    float volume = SettingsActivity.getSoundVolumeFloat(this);
-                    clickSound.setVolume(volume, volume);
-                }
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Sound initialization failed", e);
+        // Nếu đang hiện fullscreen image, đóng nó
+        if (fullscreenOverlay.getVisibility() == View.VISIBLE) {
+            hideFullscreenImage();
+        } else {
+            // Nếu không, show exit dialog như bình thường
+            showExitDialog();
         }
     }
 }

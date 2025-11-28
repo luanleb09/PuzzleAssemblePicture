@@ -34,54 +34,6 @@ android {
             enableSplit = true
         }
     }
-
-//    assetPacks {
-//        puzzlepack_001 {
-//            packType = 'on-demand'
-//        }
-//        puzzlepack_002 {
-//            packType = 'on-demand'
-//        }
-//        puzzlepack_003 {
-//            packType = 'on-demand'
-//        }
-//        puzzlepack_004 {
-//            packType = 'on-demand'
-//        }
-//        puzzlepack_005 {
-//            packType = 'on-demand'
-//        }
-//        puzzlepack_006 {
-//            packType = 'on-demand'
-//        }
-//        puzzlepack_007 {
-//            packType = 'on-demand'
-//        }
-//        puzzlepack_008 {
-//            packType = 'on-demand'
-//        }
-//        puzzlepack_009 {
-//            packType = 'on-demand'
-//        }
-//        puzzlepack_010 {
-//            packType = 'on-demand'
-//        }
-//        puzzlepack_011 {
-//            packType = 'on-demand'
-//        }
-//        puzzlepack_012 {
-//            packType = 'on-demand'
-//        }
-//        puzzlepack_013 {
-//            packType = 'on-demand'
-//        }
-//        puzzlepack_014 {
-//            packType = 'on-demand'
-//        }
-//        puzzlepack_015 {
-//            packType = 'on-demand'
-//        }
-//    }
 }
 
 dependencies {
@@ -91,4 +43,6 @@ dependencies {
     implementation 'androidx.recyclerview:recyclerview:1.3.2'
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'com.google.android.play:asset-delivery:2.2.2'
+    implementation 'com.google.android.play:asset-delivery-ktx:2.2.2'
+    implementation 'com.google.android.gms:play-services-ads:23.0.0'
 }
