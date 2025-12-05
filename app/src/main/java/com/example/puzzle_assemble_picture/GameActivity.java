@@ -4,8 +4,12 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.media.MediaPlayer;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.View;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -20,12 +24,9 @@ import android.widget.ProgressBar;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-
 public class GameActivity extends AppCompatActivity {
 
     private static final String TAG = "GameActivity";
-    // MAX_IMAGE_SIZE đã được định nghĩa trong PuzzleImageLoader
 
     private PuzzleView puzzleView;
     private ImageView sampleImageView;
@@ -34,12 +35,18 @@ public class GameActivity extends AppCompatActivity {
     private Button checkButton;
     private Button saveButton;
     private Button hintButton;
+    private TextView levelCompleteText;
+    private View completionOverlay;
+    private View glowOverlay;
+    private nl.dionsegijn.konfetti.xml.KonfettiView konfettiView;
 
     private int currentLevel;
     private int gridSize;
     private String gameMode;
     private MediaPlayer successSound;
     private MediaPlayer clickSound;
+    private MediaPlayer celebrationSound;
+    private MediaPlayer confettiSound;
     private GameProgressManager progressManager;
     private PuzzleImageLoader imageLoader;
     private Bitmap currentPuzzleBitmap;
@@ -58,39 +65,40 @@ public class GameActivity extends AppCompatActivity {
     private TextView streakCountText;
     private int currentStreak = 0;
 
+    private TextView coinCountGameText;
+    private CoinManager coinManager;
+
+    private Handler handler = new Handler(Looper.getMainLooper());
+
+    private InterstitialAdManager interstitialAdManager;
+    private boolean isShowingAd = false; // Prevent finish during ad
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         Log.d(TAG, "=== GameActivity onCreate START ===");
 
-        // Initialize AdMob
+        interstitialAdManager = new InterstitialAdManager(this);
+
         MobileAds.initialize(this, initializationStatus -> {
             Log.d(TAG, "AdMob initialized");
         });
 
         try {
             setContentView(R.layout.activity_game);
-            Log.d(TAG, "✓ Layout loaded");
 
-            // Get intent data
             currentLevel = getIntent().getIntExtra("LEVEL", 1);
             gameMode = getIntent().getStringExtra("MODE");
 
-            Log.d(TAG, "✓ Intent data - Level: " + currentLevel + ", Mode: " + gameMode);
-
             progressManager = new GameProgressManager(this);
             imageLoader = new PuzzleImageLoader(this);
-            Log.d(TAG, "✓ ProgressManager & ImageLoader created");
 
-            // Default to EASY if no mode specified
             if (gameMode == null || gameMode.isEmpty()) {
                 gameMode = GameMode.MODE_EASY;
-                Log.d(TAG, "✓ Mode defaulted to: " + gameMode);
             }
 
             gridSize = progressManager.getGridSizeForLevel(currentLevel);
-            Log.d(TAG, "✓ Grid size: " + gridSize);
 
             // Initialize views
             puzzleView = findViewById(R.id.puzzleView);
@@ -100,61 +108,49 @@ public class GameActivity extends AppCompatActivity {
             checkButton = findViewById(R.id.checkButton);
             saveButton = findViewById(R.id.saveButton);
             hintButton = findViewById(R.id.hintButton);
-
-            Log.d(TAG, "✓ All views initialized");
+            levelCompleteText = findViewById(R.id.levelCompleteText);
+            completionOverlay = findViewById(R.id.completionOverlay);
+            glowOverlay = findViewById(R.id.glowOverlay);
+            konfettiView = findViewById(R.id.konfettiView);
 
             initSounds();
 
             levelText.setText("Level " + currentLevel + " (" + gridSize + "x" + gridSize + ")");
 
-            // Check for saved game
             if (progressManager.hasSavedGame(gameMode, currentLevel)) {
-                Log.d(TAG, "✓ Has saved game - showing dialog");
                 showLoadGameDialog();
             } else {
-                Log.d(TAG, "✓ No saved game - setup new");
                 setupNewGame();
             }
 
-            // Setup button listeners
             checkButton.setOnClickListener(v -> checkProgress());
             saveButton.setOnClickListener(v -> saveGame());
             hintButton.setOnClickListener(v -> showHint());
             findViewById(R.id.backButton).setOnClickListener(v -> showExitDialog());
 
-            Log.d(TAG, "=== GameActivity onCreate COMPLETE ===");
-
         } catch (Exception e) {
             Log.e(TAG, "❌ ERROR in onCreate: ", e);
-            e.printStackTrace();
             Toast.makeText(this, "Error loading game: " + e.getMessage(), Toast.LENGTH_LONG).show();
             finish();
         }
 
-
-        // Setup AdMob Banner
         adView = findViewById(R.id.adView);
         AdRequest adRequest = new AdRequest.Builder().build();
         adView.loadAd(adRequest);
 
-        // Setup fullscreen overlay
         fullscreenOverlay = findViewById(R.id.fullscreenOverlay);
         fullscreenImageView = findViewById(R.id.fullscreenImageView);
 
-        // Click sample image to show fullscreen
         sampleImageView.setOnClickListener(v -> {
             if (currentPuzzleBitmap != null) {
                 showFullscreenImage();
             }
         });
 
-        // Click overlay to close
         fullscreenOverlay.setOnClickListener(v -> hideFullscreenImage());
 
-        // Initialize Power-ups Manager
         powerUpsManager = new PowerUpsManager(this);
 
-    // Initialize new views
         autoSolveButton = findViewById(R.id.autoSolveButton);
         shuffleButton = findViewById(R.id.shuffleButton);
         progressBar = findViewById(R.id.progressBar);
@@ -162,13 +158,14 @@ public class GameActivity extends AppCompatActivity {
         remainingCountText = findViewById(R.id.remainingCountText);
         streakCountText = findViewById(R.id.streakCountText);
 
-    // Setup power-up buttons
+        coinCountGameText = findViewById(R.id.coinCountGameText);
+        coinManager = new CoinManager(this);
+        updateCoinDisplay();
+
         autoSolveButton.setOnClickListener(v -> useAutoSolve());
         shuffleButton.setOnClickListener(v -> useShuffle());
 
-    // Update button texts với số lượt
         updatePowerUpButtons();
-
     }
 
     private void showLoadGameDialog() {
@@ -185,17 +182,12 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private void setupNewGame() {
-        Log.d(TAG, "setupNewGame - Level: " + currentLevel + ", Mode: " + gameMode);
-
-        // Clean up old bitmap
         recycleBitmap();
 
-        // Hiển thị download dialog nếu cần
         if (imageLoader.needsDownload(currentLevel)) {
             showDownloadDialog();
         }
 
-        // Load image từ assets hoặc asset pack
         imageLoader.loadLevelImage(currentLevel, new PuzzleImageLoader.ImageLoadCallback() {
             @Override
             public void onSuccess(Bitmap bitmap) {
@@ -208,7 +200,6 @@ public class GameActivity extends AppCompatActivity {
                 }
 
                 currentPuzzleBitmap = bitmap;
-                Log.d(TAG, "Bitmap loaded: " + bitmap.getWidth() + "x" + bitmap.getHeight());
 
                 PuzzleConfig config = createConfigForMode(gameMode);
                 config.gridSize = gridSize;
@@ -216,24 +207,17 @@ public class GameActivity extends AppCompatActivity {
                 if (config.showSample) {
                     sampleImageView.setVisibility(View.VISIBLE);
                     sampleImageView.setImageBitmap(currentPuzzleBitmap);
-                    Log.d(TAG, "Sample image visible");
                 } else {
                     sampleImageView.setVisibility(View.GONE);
-                    Log.d(TAG, "Sample image hidden");
                 }
 
-                // Wait for view to be laid out
                 puzzleView.getViewTreeObserver().addOnGlobalLayoutListener(
                         new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
                             @Override
                             public void onGlobalLayout() {
                                 puzzleView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
 
-                                Log.d(TAG, "PuzzleView size: " + puzzleView.getWidth() + "x" + puzzleView.getHeight());
-
                                 if (puzzleView.getWidth() == 0 || puzzleView.getHeight() == 0) {
-                                    Log.e(TAG, "PuzzleView has zero dimensions!");
-                                    Toast.makeText(GameActivity.this, "Error: View not ready", Toast.LENGTH_SHORT).show();
                                     finish();
                                     return;
                                 }
@@ -241,10 +225,8 @@ public class GameActivity extends AppCompatActivity {
                                 try {
                                     puzzleView.initPuzzle(currentPuzzleBitmap, config, createPuzzleListener());
                                     updateProgress();
-                                    Log.d(TAG, "Puzzle initialized successfully");
                                 } catch (Exception e) {
                                     Log.e(TAG, "Error initializing puzzle", e);
-                                    Toast.makeText(GameActivity.this, "Error setting up puzzle: " + e.getMessage(), Toast.LENGTH_LONG).show();
                                     finish();
                                 }
                             }
@@ -255,7 +237,6 @@ public class GameActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 dismissDownloadDialog();
-                Log.e(TAG, "Failed to load image: " + error);
                 Toast.makeText(GameActivity.this, "Failed to load puzzle image: " + error, Toast.LENGTH_LONG).show();
                 finish();
             }
@@ -268,38 +249,29 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private void loadSavedGame() {
-        Log.d(TAG, "loadSavedGame - Level: " + currentLevel);
-
         GameSaveData saveData = progressManager.loadGameState(gameMode, currentLevel);
         if (saveData == null) {
-            Log.d(TAG, "No saved game found, starting new game");
             setupNewGame();
             return;
         }
 
-        Log.d(TAG, "Saved game found, loading...");
-
         recycleBitmap();
 
-        // Hiển thị download dialog nếu cần
         if (imageLoader.needsDownload(currentLevel)) {
             showDownloadDialog();
         }
 
-        // Load image
         imageLoader.loadLevelImage(currentLevel, new PuzzleImageLoader.ImageLoadCallback() {
             @Override
             public void onSuccess(Bitmap bitmap) {
                 dismissDownloadDialog();
 
                 if (bitmap == null) {
-                    Toast.makeText(GameActivity.this, "Error: Bitmap is null!", Toast.LENGTH_LONG).show();
                     finish();
                     return;
                 }
 
                 currentPuzzleBitmap = bitmap;
-                Log.d(TAG, "Bitmap loaded: " + bitmap.getWidth() + "x" + bitmap.getHeight());
 
                 PuzzleConfig config = createConfigForMode(gameMode);
                 config.gridSize = gridSize;
@@ -307,10 +279,8 @@ public class GameActivity extends AppCompatActivity {
                 if (config.showSample) {
                     sampleImageView.setVisibility(View.VISIBLE);
                     sampleImageView.setImageBitmap(currentPuzzleBitmap);
-                    Log.d(TAG, "Sample image visible");
                 } else {
                     sampleImageView.setVisibility(View.GONE);
-                    Log.d(TAG, "Sample image hidden");
                 }
 
                 puzzleView.getViewTreeObserver().addOnGlobalLayoutListener(
@@ -319,24 +289,13 @@ public class GameActivity extends AppCompatActivity {
                             public void onGlobalLayout() {
                                 puzzleView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
 
-                                Log.d(TAG, "PuzzleView size: " + puzzleView.getWidth() + "x" + puzzleView.getHeight());
-
-                                if (puzzleView.getWidth() == 0 || puzzleView.getHeight() == 0) {
-                                    Log.e(TAG, "PuzzleView has zero dimensions!");
-                                    Toast.makeText(GameActivity.this, "Error: View not ready", Toast.LENGTH_SHORT).show();
-                                    finish();
-                                    return;
-                                }
-
                                 try {
                                     puzzleView.initPuzzle(currentPuzzleBitmap, config, createPuzzleListener());
                                     puzzleView.loadGameState(saveData);
                                     updateProgress();
-                                    Log.d(TAG, "Saved game loaded successfully");
                                     Toast.makeText(GameActivity.this, "Game loaded!", Toast.LENGTH_SHORT).show();
                                 } catch (Exception e) {
                                     Log.e(TAG, "Error loading saved game", e);
-                                    Toast.makeText(GameActivity.this, "Error loading saved game: " + e.getMessage(), Toast.LENGTH_LONG).show();
                                     finish();
                                 }
                             }
@@ -347,8 +306,6 @@ public class GameActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 dismissDownloadDialog();
-                Log.e(TAG, "Failed to load image: " + error);
-                Toast.makeText(GameActivity.this, "Failed to load puzzle image: " + error, Toast.LENGTH_LONG).show();
                 finish();
             }
 
@@ -430,7 +387,6 @@ public class GameActivity extends AppCompatActivity {
             public void onPieceConnected() {
                 playClickSound();
 
-                // Increase streak khi piece đúng vị trí
                 PuzzlePiece lastMovedPiece = getLastMovedPiece();
                 if (lastMovedPiece != null && lastMovedPiece.isLocked()) {
                     currentStreak++;
@@ -448,8 +404,10 @@ public class GameActivity extends AppCompatActivity {
 
             @Override
             public void onPuzzleCompleted() {
-                playSuccessSound();
-                onLevelCompleted();
+                playCelebrationSound();
+
+                // Show completion overlay with full image blinking
+                showCompletionAnimation();
             }
 
             @Override
@@ -459,13 +417,283 @@ public class GameActivity extends AppCompatActivity {
         };
     }
 
+    /**
+     * Show completion with FULL CELEBRATION EFFECTS
+     */
+    private void showCompletionAnimation() {
+        // === GIAI ĐOẠN 1: Show Full Image (KHÔNG có animation) ===
+        completionOverlay.setVisibility(View.VISIBLE);
+        completionOverlay.setAlpha(1f);
+
+        // ✅ ẨN tất cả effects ban đầu
+        if (konfettiView != null) konfettiView.setVisibility(View.INVISIBLE);
+        if (glowOverlay != null) glowOverlay.setVisibility(View.INVISIBLE);
+        if (levelCompleteText != null) levelCompleteText.setVisibility(View.INVISIBLE);
+
+
+        // Fade in overlay
+        completionOverlay.animate()
+                .alpha(1f)
+                .setDuration(1000)
+                .withEndAction(() -> {
+                    // Full image đã hiển thị, CHỜ 3 giây trước khi start animation
+                    handler.postDelayed(() -> {
+                        startCelebrationEffects();
+                    }, 3000); // ← CHỜ 3 giây để xem full image
+
+                    // Sau 6 giây (3s xem + 3s animation), navigate
+                    handler.postDelayed(() -> {
+                        onLevelCompleted();
+                    }, 6000); // ← Tổng 6 giây
+                })
+                .start();
+    }
+
+    /**
+     * Start all celebration effects combo
+     */
+    private void startCelebrationEffects() {
+        // ✅ Show effects overlay
+        if (konfettiView != null) konfettiView.setVisibility(View.VISIBLE);
+        if (levelCompleteText != null) levelCompleteText.setVisibility(View.VISIBLE);
+
+        // 1. Play celebration sound
+        playCelebrationSound();
+
+        // 2. Start confetti
+        startKonfettiEffect();
+
+        // 3. Glow effect
+//        startGlowEffect();
+
+        // 4. Scale bounce animation
+//        startScaleBounceEffect();
+
+        // 5. Blink level complete text
+        handler.postDelayed(() -> {
+            blinkLevelCompleteText();
+        }, 1000);
+
+        // 6. Haptic feedback pattern
+        playVictoryVibration();
+    }
+
+    /**
+     * Konfetti effect - confetti falling from top
+     */
+    private void startKonfettiEffect() {
+        if (konfettiView == null) return;
+
+        // Play confetti pop sound
+        playConfettiSound();
+
+        // Create party configuration
+        nl.dionsegijn.konfetti.core.emitter.EmitterConfig emitterConfig =
+                new nl.dionsegijn.konfetti.core.emitter.Emitter(300, java.util.concurrent.TimeUnit.MILLISECONDS).max(100);
+
+        nl.dionsegijn.konfetti.core.Party party = new nl.dionsegijn.konfetti.core.PartyFactory(emitterConfig)
+                .spread(360)
+                .shapes(java.util.Arrays.asList(
+                        nl.dionsegijn.konfetti.core.models.Shape.Square.INSTANCE,
+                        nl.dionsegijn.konfetti.core.models.Shape.Circle.INSTANCE
+                ))
+                .colors(java.util.Arrays.asList(
+                        0xFFFFD700, // Gold
+                        0xFFFF6B6B, // Red
+                        0xFF4ECDC4, // Cyan
+                        0xFF45B7D1, // Blue
+                        0xFFFFA07A, // Orange
+                        0xFF98D8C8  // Green
+                ))
+                .setSpeedBetween(0f, 30f)
+                .position(new nl.dionsegijn.konfetti.core.Position.Relative(0.0, 0.0)
+                        .between(new nl.dionsegijn.konfetti.core.Position.Relative(1.0, 0.0)))
+                .build();
+
+        konfettiView.start(party);
+
+        // Second burst after 800ms
+        handler.postDelayed(() -> {
+            konfettiView.start(party);
+        }, 800);
+    }
+
+    /**
+     * Glow effect - pulsating glow around image
+     */
+    private void startGlowEffect() {
+        if (glowOverlay == null) return;
+
+        // Set glow color (gold)
+
+        // ✅ Làm mờ hơn nhiều: 0x40 → 0x10 (chỉ 6% opacity)
+        glowOverlay.setBackgroundColor(0x10FFD700); // Vàng cực nhẹ
+        glowOverlay.setVisibility(View.VISIBLE);
+
+        // Animate glow pulsing
+        android.animation.ObjectAnimator glowAnim = android.animation.ObjectAnimator.ofFloat(
+                glowOverlay, "alpha", 0f, 0.6f, 0f, 0.6f, 0f
+        );
+        glowAnim.setDuration(2000);
+        glowAnim.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
+        glowAnim.start();
+    }
+
+    /**
+     * Scale bounce effect - image bounces with overshoot
+     */
+    private void startScaleBounceEffect() {
+        View puzzleContainer = findViewById(R.id.completionPuzzleView);
+        if (puzzleContainer == null) return;
+
+        puzzleContainer.setScaleX(0.8f);
+        puzzleContainer.setScaleY(0.8f);
+
+        puzzleContainer.animate()
+                .scaleX(1.1f)
+                .scaleY(1.1f)
+                .setDuration(400)
+                .setInterpolator(new android.view.animation.OvershootInterpolator(2.0f))
+                .withEndAction(() -> {
+                    puzzleContainer.animate()
+                            .scaleX(1.0f)
+                            .scaleY(1.0f)
+                            .setDuration(250)
+                            .start();
+                })
+                .start();
+    }
+
+    /**
+     * Victory vibration pattern
+     */
+    private void playVictoryVibration() {
+        if (!SettingsActivity.isVibrationEnabled(this)) return;
+
+        android.os.Vibrator vibrator = (android.os.Vibrator) getSystemService(android.content.Context.VIBRATOR_SERVICE);
+        if (vibrator != null && vibrator.hasVibrator()) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                // Pattern: short-short-long-short-long
+                long[] pattern = {0, 100, 50, 100, 50, 300, 50, 100, 50, 400};
+                android.os.VibrationEffect effect = android.os.VibrationEffect.createWaveform(pattern, -1);
+                vibrator.vibrate(effect);
+            } else {
+                vibrator.vibrate(500);
+            }
+        }
+    }
+
+    /**
+     * Blink "LEVEL COMPLETE" text (1 second, 2 blinks)
+     */
+    private void blinkLevelCompleteText() {
+        levelCompleteText.setVisibility(View.VISIBLE);
+        levelCompleteText.setAlpha(1f);
+
+        AlphaAnimation blink = new AlphaAnimation(0.2f, 1.0f);
+        blink.setDuration(400);
+        blink.setRepeatCount(2); // 2 full blinks
+        blink.setRepeatMode(Animation.REVERSE);
+
+        levelCompleteText.startAnimation(blink);
+    }
+
+    /**
+     * Auto navigate to next level or mode select
+     */
     private void onLevelCompleted() {
+        // ✅ MARK COMPLETED NGAY KHI HOÀN THÀNH
         progressManager.markLevelCompleted(gameMode, currentLevel);
         progressManager.clearGameState(gameMode, currentLevel);
         progressManager.addGalleryPiece(currentLevel - 1);
 
-        String unlockMessage = progressManager.getUnlockMessage(gameMode, currentLevel);
-        showCompletionDialog(unlockMessage);
+        // ✅ THÊM: Auto-download pack cho level tiếp theo
+        PreDownloadManager preDownloadManager = new PreDownloadManager(this);
+        preDownloadManager.autoDownloadNextPack(currentLevel);
+
+        // ✅ REWARD COINS - Rút gọn toast message
+        int reward = CoinManager.getRewardForLevel(gameMode);
+        coinManager.addCoins(reward);
+
+        // Toast gọn hơn với formatted coin
+        Toast.makeText(this,
+                "🪙 " + CoinManager.formatRewardDisplay(reward) + " coins!",
+                Toast.LENGTH_SHORT).show();
+
+        updateCoinDisplay(); // ← Cập nhật UI
+
+        int nextLevel = currentLevel + 1;
+
+        if (nextLevel > GameProgressManager.MAX_LEVEL) {
+            // Last level completed
+            String message = "🎉 Congratulations!\nYou've completed all levels in " + getModeDisplayName(gameMode) + " mode!";
+
+            String unlockMessage = progressManager.getUnlockMessage(gameMode, currentLevel);
+            if (unlockMessage != null) {
+                message += "\n\n" + unlockMessage;
+            }
+
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+
+            interstitialAdManager.onLevelCompleted(this, new InterstitialAdManager.AdCallback() {
+                @Override
+                public void onAdShown() {
+                    Log.d(TAG, "Interstitial ad shown");
+                }
+
+                @Override
+                public void onAdDismissed() {
+                    handler.postDelayed(() -> {
+                        finish();
+                    }, 2000);
+                }
+
+                @Override
+                public void onAdFailedToShow() {
+                    handler.postDelayed(() -> {
+                        finish();
+                    }, 2000);
+                }
+            });
+
+        } else {
+            // ✅ FIX: Đảm bảo level tiếp theo được unlock trước khi navigate
+            interstitialAdManager.onLevelCompleted(this, new InterstitialAdManager.AdCallback() {
+                @Override
+                public void onAdShown() {
+                    Log.d(TAG, "Interstitial ad shown");
+                }
+
+                public void onAdDismissed() {
+                    Intent intent = new Intent(GameActivity.this, GameActivity.class);
+                    intent.putExtra("LEVEL", nextLevel);
+                    intent.putExtra("MODE", gameMode);
+                    startActivity(intent);
+                    finish();
+                    overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+                }
+
+                @Override
+                public void onAdFailedToShow() {
+                    Intent intent = new Intent(GameActivity.this, GameActivity.class);
+                    intent.putExtra("LEVEL", nextLevel);
+                    intent.putExtra("MODE", gameMode);
+                    startActivity(intent);
+                    finish();
+                    overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+                }
+            });
+        }
+    }
+
+    private String getModeDisplayName(String mode) {
+        switch (mode) {
+            case GameMode.MODE_EASY: return "Easy";
+            case GameMode.MODE_NORMAL: return "Normal";
+            case GameMode.MODE_HARD: return "Hard";
+            case GameMode.MODE_INSANE: return "Insane";
+            default: return mode;
+        }
     }
 
     private void updateProgress() {
@@ -550,37 +778,6 @@ public class GameActivity extends AppCompatActivity {
         }
     }
 
-    private void showCompletionDialog(String unlockMessage) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("🎉 Level Complete!");
-
-        String message = "You completed Level " + currentLevel + "!\n\n";
-        message += "🧩 Gallery piece unlocked!\n";
-
-        if (unlockMessage != null) {
-            message += "\n" + unlockMessage;
-        }
-
-        builder.setMessage(message);
-        builder.setPositiveButton("Next Level", (dialog, which) -> {
-            int nextLevel = currentLevel + 1;
-            if (nextLevel <= GameProgressManager.MAX_LEVEL) {
-                Intent intent = getIntent();
-                intent.putExtra("LEVEL", nextLevel);
-                intent.putExtra("MODE", gameMode);
-                finish();
-                startActivity(intent);
-                overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
-            } else {
-                Toast.makeText(this, "🎉 You've completed all levels in this mode!", Toast.LENGTH_LONG).show();
-                finish();
-            }
-        });
-        builder.setNegativeButton("Main Menu", (dialog, which) -> finish());
-        builder.setCancelable(false);
-        builder.show();
-    }
-
     private void showExitDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Exit Level?");
@@ -607,12 +804,24 @@ public class GameActivity extends AppCompatActivity {
         }
     }
 
-    private void playSuccessSound() {
-        if (SettingsActivity.isSoundEnabled(this) && successSound != null) {
+    private void playCelebrationSound() {
+        if (SettingsActivity.isSoundEnabled(this) && celebrationSound != null) {
             try {
                 float volume = SettingsActivity.getSoundVolumeFloat(this);
-                successSound.setVolume(volume, volume);
-                successSound.start();
+                celebrationSound.setVolume(volume, volume);
+                celebrationSound.start();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void playConfettiSound() {
+        if (SettingsActivity.isSoundEnabled(this) && confettiSound != null) {
+            try {
+                float volume = SettingsActivity.getSoundVolumeFloat(this);
+                confettiSound.setVolume(volume, volume);
+                confettiSound.start();
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -623,7 +832,6 @@ public class GameActivity extends AppCompatActivity {
         if (currentPuzzleBitmap != null && !currentPuzzleBitmap.isRecycled()) {
             currentPuzzleBitmap.recycle();
             currentPuzzleBitmap = null;
-            Log.d(TAG, "Bitmap recycled");
         }
     }
 
@@ -633,6 +841,14 @@ public class GameActivity extends AppCompatActivity {
                 successSound = MediaPlayer.create(this, R.raw.success_sound);
                 clickSound = MediaPlayer.create(this, R.raw.click_sound);
 
+                // Try to load celebration sounds (may not exist yet)
+                try {
+                    celebrationSound = MediaPlayer.create(this, R.raw.success_sound); // Use existing for now
+                    confettiSound = MediaPlayer.create(this, R.raw.click_sound); // Use existing for now
+                } catch (Exception e) {
+                    Log.d(TAG, "Celebration sounds not found, using defaults");
+                }
+
                 if (successSound != null) {
                     float volume = SettingsActivity.getSoundVolumeFloat(this);
                     successSound.setVolume(volume, volume);
@@ -640,6 +856,14 @@ public class GameActivity extends AppCompatActivity {
                 if (clickSound != null) {
                     float volume = SettingsActivity.getSoundVolumeFloat(this);
                     clickSound.setVolume(volume, volume);
+                }
+                if (celebrationSound != null) {
+                    float volume = SettingsActivity.getSoundVolumeFloat(this);
+                    celebrationSound.setVolume(volume, volume);
+                }
+                if (confettiSound != null) {
+                    float volume = SettingsActivity.getSoundVolumeFloat(this);
+                    confettiSound.setVolume(volume, volume);
                 }
             }
         } catch (Exception e) {
@@ -650,58 +874,81 @@ public class GameActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        if (SettingsActivity.isAutoSaveEnabled(this) && !puzzleView.isPuzzleCompleted()) {
+
+        // Don't auto-save if showing ad or puzzle completed
+        if (!isShowingAd && SettingsActivity.isAutoSaveEnabled(this) && !puzzleView.isPuzzleCompleted()) {
             saveGame();
         }
     }
 
     private void useAutoSolve() {
+        if (isShowingAd) {
+            Toast.makeText(this, "Please wait...", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.AUTO_SOLVE, new PowerUpsManager.PowerUpCallback() {
             @Override
             public void onSuccess() {
-                // Execute auto-solve
+                isShowingAd = true;
+
                 boolean solved = puzzleView.autoSolveOnePiece();
 
-                if (solved) {
-                    Toast.makeText(GameActivity.this, "✨ One piece auto-solved!", Toast.LENGTH_SHORT).show();
-                    updateStats();
-                    updatePowerUpButtons();
+                handler.postDelayed(() -> {
+                    isShowingAd = false;
 
-                    // Check completion
-                    if (puzzleView.isPuzzleCompleted()) {
-                        onLevelCompleted();
+                    if (solved) {
+                        if (!puzzleView.isPuzzleCompleted()) {
+                            Toast.makeText(GameActivity.this, "✨ One piece auto-solved!", Toast.LENGTH_SHORT).show();
+                            updateStats();
+                            updatePowerUpButtons();
+                            updateCoinDisplay(); // ← Cập nhật coin sau khi spend
+                        }
+                    } else {
+                        Toast.makeText(GameActivity.this, "No pieces to auto-solve!", Toast.LENGTH_SHORT).show();
                     }
-                } else {
-                    Toast.makeText(GameActivity.this, "No pieces to auto-solve!", Toast.LENGTH_SHORT).show();
-                }
+                }, 1500);
             }
 
             @Override
             public void onFailed(String reason) {
+                isShowingAd = false;
                 Toast.makeText(GameActivity.this, reason, Toast.LENGTH_SHORT).show();
             }
         });
     }
 
     private void useShuffle() {
+        if (isShowingAd) {
+            Toast.makeText(this, "Please wait...", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.SHUFFLE, new PowerUpsManager.PowerUpCallback() {
             @Override
             public void onSuccess() {
-                // Execute shuffle
+                isShowingAd = true;
+
                 boolean shuffled = puzzleView.shuffleRemainingPieces();
 
-                if (shuffled) {
-                    Toast.makeText(GameActivity.this, "🔀 Pieces shuffled!", Toast.LENGTH_SHORT).show();
-                    currentStreak = 0; // Reset streak khi shuffle
-                    updateStats();
-                    updatePowerUpButtons();
-                } else {
-                    Toast.makeText(GameActivity.this, "No pieces to shuffle!", Toast.LENGTH_SHORT).show();
-                }
+                handler.postDelayed(() -> {
+                    isShowingAd = false;
+
+                    if (shuffled) {
+                        Toast.makeText(GameActivity.this, "🔀 Pieces shuffled!", Toast.LENGTH_SHORT).show();
+                        currentStreak = 0;
+                        updateStats();
+                        updatePowerUpButtons();
+                        updateCoinDisplay(); // ← Cập nhật coin sau khi spend
+                    } else {
+                        Toast.makeText(GameActivity.this, "No pieces to shuffle!", Toast.LENGTH_SHORT).show();
+                    }
+                }, 1500);
             }
 
             @Override
             public void onFailed(String reason) {
+                isShowingAd = false;
                 Toast.makeText(GameActivity.this, reason, Toast.LENGTH_SHORT).show();
             }
         });
@@ -738,22 +985,23 @@ public class GameActivity extends AppCompatActivity {
         int lockedPieces = puzzleView.getLockedPiecesCount();
         int remainingPieces = puzzleView.getRemainingPiecesCount();
 
-        // Update progress bar
         int progress = (correctPieces * 100) / totalPieces;
         progressBar.setProgress(progress);
 
-        // Update counts
         lockedCountText.setText(String.valueOf(lockedPieces));
         remainingCountText.setText(String.valueOf(remainingPieces));
         streakCountText.setText(String.valueOf(currentStreak));
 
-        // Update main progress text
         progressText.setText(correctPieces + "/" + totalPieces + " (" + progress + "%)");
     }
 
+    private void updateCoinDisplay() {
+        if (coinCountGameText != null && coinManager != null) {
+            coinCountGameText.setText(coinManager.getFormattedCoinsWithIcon());
+        }
+    }
+
     private PuzzlePiece getLastMovedPiece() {
-        // Simplified - just return null for now
-        // PuzzleView cần track last moved piece nếu muốn chính xác
         return null;
     }
 
@@ -761,8 +1009,7 @@ public class GameActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
 
-        Log.d(TAG, "onDestroy called");
-
+        handler.removeCallbacksAndMessages(null);
         dismissDownloadDialog();
         recycleBitmap();
 
@@ -773,6 +1020,14 @@ public class GameActivity extends AppCompatActivity {
         if (clickSound != null) {
             clickSound.release();
             clickSound = null;
+        }
+        if (celebrationSound != null) {
+            celebrationSound.release();
+            celebrationSound = null;
+        }
+        if (confettiSound != null) {
+            confettiSound.release();
+            confettiSound = null;
         }
 
         if (puzzleView != null) {
@@ -792,7 +1047,6 @@ public class GameActivity extends AppCompatActivity {
         }
 
         powerUpsManager = null;
-        super.onDestroy();
     }
 
     private void showFullscreenImage() {
@@ -800,7 +1054,6 @@ public class GameActivity extends AppCompatActivity {
             fullscreenImageView.setImageBitmap(currentPuzzleBitmap);
             fullscreenOverlay.setVisibility(View.VISIBLE);
 
-            // Animate fade in
             fullscreenOverlay.setAlpha(0f);
             fullscreenOverlay.animate()
                     .alpha(1f)
@@ -810,7 +1063,6 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private void hideFullscreenImage() {
-        // Animate fade out
         fullscreenOverlay.animate()
                 .alpha(0f)
                 .setDuration(200)
@@ -823,11 +1075,9 @@ public class GameActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        // Nếu đang hiện fullscreen image, đóng nó
         if (fullscreenOverlay.getVisibility() == View.VISIBLE) {
             hideFullscreenImage();
         } else {
-            // Nếu không, show exit dialog như bình thường
             showExitDialog();
         }
     }

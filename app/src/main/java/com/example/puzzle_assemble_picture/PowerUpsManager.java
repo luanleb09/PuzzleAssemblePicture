@@ -5,7 +5,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Log;
 import android.widget.Toast;
-
+import androidx.appcompat.app.AlertDialog;
 import androidx.annotation.NonNull;
 
 import com.google.android.gms.ads.AdError;
@@ -71,8 +71,7 @@ public class PowerUpsManager {
         String lastResetDate = prefs.getString(KEY_LAST_RESET_DATE, "");
 
         if (!today.equals(lastResetDate)) {
-            // New day - reset free uses
-            Log.d(TAG, "New day detected! Resetting free uses. Last: " + lastResetDate + ", Today: " + today);
+            Log.d(TAG, "New day detected! Resetting free uses.");
 
             prefs.edit()
                     .putInt(KEY_AUTO_SOLVE_COUNT, DAILY_AUTO_SOLVE)
@@ -81,39 +80,78 @@ public class PowerUpsManager {
                     .apply();
 
             Log.d(TAG, "✓ Reset complete: Auto-Solve=" + DAILY_AUTO_SOLVE + ", Shuffle=" + DAILY_SHUFFLE);
-        } else {
-            Log.d(TAG, "Same day, no reset needed");
         }
     }
 
-    /**
-     * Get today's date as string (yyyy-MM-dd)
-     */
     private String getTodayDate() {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         return sdf.format(new Date());
     }
 
     /**
-     * Use a power-up (free or ad-based)
+     * Use a power-up (Priority: Free → Coins → Ads)
      */
     public void usePowerUp(PowerUpType type, PowerUpCallback callback) {
         int remaining = getRemainingUses(type);
 
         if (remaining > 0) {
-            // Has free uses
-            Log.d(TAG, "Using free " + type + " (remaining: " + remaining + ")");
+            // 1. Dùng free daily uses
             decrementCount(type);
             callback.onSuccess();
         } else {
-            // No free uses - need to watch ad
-            Log.d(TAG, "No free " + type + " remaining. Showing rewarded ad...");
-            showRewardedAdForPowerUp(type, callback);
+            // 2. Không còn free, show options: Coins hoặc Ads
+            showPurchaseOptions(type, callback);
         }
     }
 
     /**
-     * Get remaining free uses for a power-up type
+     * Show purchase options: Buy with coins or watch ad
+     */
+    private void showPurchaseOptions(PowerUpType type, PowerUpCallback callback) {
+        if (!(context instanceof Activity)) {
+            callback.onFailed("Cannot show dialog");
+            return;
+        }
+
+        CoinManager coinManager = new CoinManager(context);
+        int cost = (type == PowerUpType.AUTO_SOLVE) ? GameConfig.COST_AUTO_SOLVE : GameConfig.COST_SHUFFLE;
+        String powerUpName = (type == PowerUpType.AUTO_SOLVE) ? "Auto-Solve" : "Shuffle";
+        int currentCoins = coinManager.getCoins();
+
+        AlertDialog.Builder builder = new AlertDialog.Builder((Activity) context);
+        builder.setTitle("Use " + powerUpName + "?");
+        builder.setMessage(
+                "No free uses left today!\n\n" +
+                        "Options:\n" +
+                        "• Buy: " + cost + " coins (You have: " + currentCoins + ")\n" +
+                        "• Watch an ad (Free)"
+        );
+
+        // Option 1: Buy with coins
+        if (coinManager.canAfford(cost)) {
+            builder.setPositiveButton("💰 Buy (" + cost + " coins)", (dialog, which) -> {
+                if (coinManager.spendCoins(cost)) {
+                    Toast.makeText(context, "✅ Purchased! -" + cost + " coins", Toast.LENGTH_SHORT).show();
+                    callback.onSuccess();
+                } else {
+                    callback.onFailed("Not enough coins!");
+                }
+            });
+        }
+
+        // Option 2: Watch ad
+        builder.setNegativeButton("📺 Watch Ad", (dialog, which) -> {
+            showRewardedAdForPowerUp(type, callback);
+        });
+
+        // Option 3: Cancel
+        builder.setNeutralButton("Cancel", null);
+
+        builder.show();
+    }
+
+    /**
+     * Get remaining free uses
      */
     public int getRemainingUses(PowerUpType type) {
         String key = getKeyForType(type);
@@ -121,39 +159,29 @@ public class PowerUpsManager {
     }
 
     /**
-     * Decrement the count for a power-up type
+     * Decrement count
      */
     private void decrementCount(PowerUpType type) {
         String key = getKeyForType(type);
         int current = prefs.getInt(key, 0);
         if (current > 0) {
             prefs.edit().putInt(key, current - 1).apply();
-            Log.d(TAG, type + " count decreased to: " + (current - 1));
+            Log.d(TAG, type + " count: " + (current - 1));
         }
     }
 
     /**
-     * Add uses (called after watching ad)
+     * Add uses (from watching ad)
      */
     public void addUses(PowerUpType type, int amount) {
         String key = getKeyForType(type);
         int current = prefs.getInt(key, 0);
         prefs.edit().putInt(key, current + amount).apply();
-        Log.d(TAG, type + " count increased by " + amount + " to: " + (current + amount));
+        Log.d(TAG, type + " +" + amount + " uses");
     }
 
-    /**
-     * Get SharedPreferences key for power-up type
-     */
     private String getKeyForType(PowerUpType type) {
-        switch (type) {
-            case AUTO_SOLVE:
-                return KEY_AUTO_SOLVE_COUNT;
-            case SHUFFLE:
-                return KEY_SHUFFLE_COUNT;
-            default:
-                return "";
-        }
+        return (type == PowerUpType.AUTO_SOLVE) ? KEY_AUTO_SOLVE_COUNT : KEY_SHUFFLE_COUNT;
     }
 
     /**
@@ -161,13 +189,10 @@ public class PowerUpsManager {
      */
     private void loadRewardedAd() {
         if (isLoadingAd || rewardedAd != null) {
-            Log.d(TAG, "Ad already loaded or loading");
             return;
         }
 
         isLoadingAd = true;
-        Log.d(TAG, "Loading rewarded ad...");
-
         AdRequest adRequest = new AdRequest.Builder().build();
 
         RewardedAd.load(context, TEST_REWARDED_AD_ID, adRequest, new RewardedAdLoadCallback() {
@@ -175,152 +200,121 @@ public class PowerUpsManager {
             public void onAdLoaded(@NonNull RewardedAd ad) {
                 rewardedAd = ad;
                 isLoadingAd = false;
-                Log.d(TAG, "✓ Rewarded ad loaded successfully");
-
-                // Set up ad callbacks
+                Log.d(TAG, "✓ Rewarded ad loaded");
                 setupAdCallbacks();
             }
 
             @Override
             public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
-                Log.e(TAG, "❌ Failed to load rewarded ad: " + loadAdError.getMessage());
+                Log.e(TAG, "❌ Ad load failed: " + loadAdError.getMessage());
                 rewardedAd = null;
                 isLoadingAd = false;
             }
         });
     }
 
-    /**
-     * Setup callbacks for the rewarded ad
-     */
     private void setupAdCallbacks() {
         if (rewardedAd == null) return;
 
         rewardedAd.setFullScreenContentCallback(new FullScreenContentCallback() {
             @Override
             public void onAdDismissedFullScreenContent() {
-                Log.d(TAG, "Ad dismissed");
                 rewardedAd = null;
-
-                // Reload next ad
                 loadRewardedAd();
             }
 
             @Override
             public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
-                Log.e(TAG, "❌ Failed to show ad: " + adError.getMessage());
+                Log.e(TAG, "❌ Ad show failed: " + adError.getMessage());
                 rewardedAd = null;
-
                 if (pendingCallback != null) {
-                    pendingCallback.onFailed("Failed to show ad. Please try again.");
+                    pendingCallback.onFailed("Ad failed to show");
                     pendingCallback = null;
                 }
-
-                // Reload next ad
                 loadRewardedAd();
             }
 
             @Override
             public void onAdShowedFullScreenContent() {
-                Log.d(TAG, "Ad showed full screen");
+                Log.d(TAG, "Ad showed");
             }
         });
     }
 
     /**
-     * Show rewarded ad for power-up
+     * Show rewarded ad
      */
     private void showRewardedAdForPowerUp(PowerUpType type, PowerUpCallback callback) {
         if (!(context instanceof Activity)) {
-            callback.onFailed("Cannot show ad: invalid context");
+            callback.onFailed("Cannot show ad");
             return;
         }
 
         Activity activity = (Activity) context;
 
         if (rewardedAd != null) {
-            Log.d(TAG, "Showing rewarded ad for " + type);
-
             pendingPowerUp = type;
             pendingCallback = callback;
 
             rewardedAd.show(activity, rewardItem -> {
-                // User earned the reward
-                Log.d(TAG, "✓ User earned reward: " + rewardItem.getAmount());
+                Log.d(TAG, "✓ User earned reward");
 
-                // Grant 1 use
-                addUses(type, 1);
+                // Grant 1 use (không cần vì sẽ execute ngay)
+                // addUses(type, 1);
 
-                // Execute the power-up
                 if (pendingCallback != null) {
                     pendingCallback.onSuccess();
-                    Toast.makeText(context, "✨ Reward earned! +1 " + type, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, "✨ Reward earned!", Toast.LENGTH_SHORT).show();
                 }
 
-                // Clear pending
                 pendingPowerUp = null;
                 pendingCallback = null;
             });
         } else {
-            // Ad not ready
-            Log.d(TAG, "Ad not ready, trying to load...");
-
-            // Try to load ad immediately
+            // Ad not ready, try loading
             if (!isLoadingAd) {
                 pendingPowerUp = type;
                 pendingCallback = callback;
-
-                Toast.makeText(context, "Loading ad, please wait...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, "Loading ad...", Toast.LENGTH_SHORT).show();
                 loadRewardedAd();
 
-                // Wait 2 seconds and retry
                 new android.os.Handler().postDelayed(() -> {
                     if (rewardedAd != null && pendingCallback != null) {
                         showRewardedAdForPowerUp(pendingPowerUp, pendingCallback);
                     } else if (pendingCallback != null) {
-                        pendingCallback.onFailed("Ad not available. Please try again later.");
+                        pendingCallback.onFailed("Ad not available");
                         pendingCallback = null;
                         pendingPowerUp = null;
                     }
                 }, 2000);
             } else {
-                callback.onFailed("Ad is loading. Please try again in a moment.");
+                callback.onFailed("Ad is loading, please wait");
             }
         }
     }
 
-    /**
-     * Force reload ad (can be called manually if needed)
-     */
     public void reloadAd() {
         loadRewardedAd();
     }
 
-    /**
-     * Check if ad is ready
-     */
     public boolean isAdReady() {
         return rewardedAd != null;
     }
 
-    /**
-     * Reset to initial values (for testing)
-     */
     public void resetToInitial() {
         prefs.edit()
                 .putInt(KEY_AUTO_SOLVE_COUNT, DAILY_AUTO_SOLVE)
                 .putInt(KEY_SHUFFLE_COUNT, DAILY_SHUFFLE)
                 .putString(KEY_LAST_RESET_DATE, getTodayDate())
                 .apply();
-        Log.d(TAG, "✓ Reset to initial values");
+        Log.d(TAG, "✓ Reset to initial");
     }
 
-    /**
-     * Get debug info
-     */
     public String getDebugInfo() {
+        CoinManager coinManager = new CoinManager(context);
         return "Auto-Solve: " + getRemainingUses(PowerUpType.AUTO_SOLVE) + "/" + DAILY_AUTO_SOLVE + "\n" +
                 "Shuffle: " + getRemainingUses(PowerUpType.SHUFFLE) + "/" + DAILY_SHUFFLE + "\n" +
+                "Coins: " + coinManager.getCoins() + "\n" +
                 "Last Reset: " + prefs.getString(KEY_LAST_RESET_DATE, "Never") + "\n" +
                 "Ad Ready: " + isAdReady();
     }

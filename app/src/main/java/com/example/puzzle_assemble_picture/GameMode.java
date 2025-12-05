@@ -31,31 +31,31 @@ public class GameMode {
             case MODE_EASY:
                 return "Perfect for beginners!\n\n" +
                         "✓ Sample image shown\n" +
-                        "✓ Pieces auto-connect when correct\n" +
-                        "✓ Correct pieces lock in place\n" +
-                        "✓ Pieces dim when locked";
+                        "✓ Pieces auto-lock when placed correctly\n" +
+                        "✓ Locked pieces dim";
 
             case MODE_NORMAL:
                 return "Standard challenge!\n\n" +
                         "✓ Sample image shown\n" +
-                        "✓ Pieces auto-connect when correct\n" +
                         "✗ No auto-lock\n" +
                         "✗ No dimming effect";
 
             case MODE_HARD:
                 return "For experienced players!\n\n" +
                         "✗ No sample image\n" +
-                        "✓ Pieces auto-connect\n" +
-                        "✓ Can separate connected pieces\n" +
-                        "✗ No auto-lock";
+                        "✗ No auto-lock\n" +
+                        "✗ No dimming\n" +
+                        "Standard puzzle experience with zero assistance.";
 
             case MODE_INSANE:
                 return "Ultimate challenge!\n\n" +
                         "✗ No sample image\n" +
-                        "✗ No auto-connect\n" +
-                        "✓ Can separate pieces anytime\n" +
                         "✗ No auto-lock\n" +
-                        "Only for masters!";
+                        "✗ No dimming\n" +
+                        "✓ Pieces start rotated randomly (90°–180°)\n" +
+                        "✓ Limited mistakes allowed (too many → shuffle)\n" +
+                        "✓ Time pressure — complete before the timer runs out\n" +
+                        "Only for true masters!";
 
             default:
                 return "Select this mode to start playing!";

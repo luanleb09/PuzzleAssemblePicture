@@ -19,6 +19,9 @@ public class MainActivity extends AppCompatActivity {
     private Button btnAchievements;
     private Button btnSettings;
     private TextView progressText;
+
+    private TextView coinCountText;
+    private CoinManager coinManager;
     private GameProgressManager progressManager;
     private AdView adView;
 
@@ -27,18 +30,13 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // ✅ Initialize AdMob ASYNC - không block UI thread
-        new Thread(() -> {
-            AdMobHelper.initialize(MainActivity.this);
-
-            // Load banner sau khi init xong
-            runOnUiThread(() -> {
-                adView = findViewById(R.id.adView);
-                if (adView != null) {
-                    AdMobHelper.loadBannerAd(adView);
-                }
-            });
-        }).start();
+        // ✅ AdMob already initialized in LoadingActivity, just load banner
+        adView = findViewById(R.id.adView);
+        if (adView != null) {
+            new Thread(() -> {
+                runOnUiThread(() -> AdMobHelper.loadBannerAd(adView));
+            }).start();
+        }
 
         progressManager = new GameProgressManager(this);
 
@@ -49,8 +47,15 @@ public class MainActivity extends AppCompatActivity {
         btnSettings = findViewById(R.id.btnSettings);
         progressText = findViewById(R.id.progressText);
 
-        // Setup RecyclerView
-        modeRecyclerView.setLayoutManager(new GridLayoutManager(this, 2));
+        coinCountText = findViewById(R.id.coinCountText);
+        coinManager = new CoinManager(this);
+        updateCoinDisplay();
+
+        // ✅ OPTIMIZE: Setup RecyclerView with performance tweaks
+        GridLayoutManager layoutManager = new GridLayoutManager(this, 2);
+        modeRecyclerView.setLayoutManager(layoutManager);
+        modeRecyclerView.setHasFixedSize(true);
+        modeRecyclerView.setItemViewCacheSize(4); // Only 4 modes
 
         List<GameMode> modes = createModeList();
         ModeSelectAdapter adapter = new ModeSelectAdapter(modes, this::onModeSelected);
@@ -76,11 +81,15 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Refresh mode list and progress when returning to main screen
-        List<GameMode> modes = createModeList();
-        ModeSelectAdapter adapter = new ModeSelectAdapter(modes, this::onModeSelected);
-        modeRecyclerView.setAdapter(adapter);
+
+        // ✅ OPTIMIZE: Only refresh if needed (don't recreate adapter every time)
+        if (modeRecyclerView.getAdapter() != null) {
+            modeRecyclerView.getAdapter().notifyDataSetChanged();
+        }
+
         updateProgressText();
+        updateCoinDisplay();
+
         if (adView != null) {
             adView.resume();
         }
@@ -101,7 +110,7 @@ public class MainActivity extends AppCompatActivity {
                 GameMode.MODE_EASY,
                 "🟢 Easy Mode",
                 R.drawable.mode_easy,
-                false, // Easy is always unlocked
+                false,
                 1
         ));
 
@@ -138,7 +147,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        // Open level selection for this mode
+        // ✅ FAST: Direct navigation without preparation
         Intent intent = new Intent(this, LevelSelectionActivity.class);
         intent.putExtra("MODE", mode.getModeType());
         startActivity(intent);
@@ -170,7 +179,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateProgressText() {
         int totalCompleted = progressManager.getTotalCompletedLevelsAllModes();
-        int totalLevels = GameProgressManager.MAX_LEVEL * 4; // 4 modes
+        int totalLevels = GameProgressManager.MAX_LEVEL * 4;
         float completion = progressManager.getOverallCompletionPercentage();
 
         int galleryPieces = progressManager.getUnlockedPiecesCount();
@@ -200,6 +209,12 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(this, SettingsActivity.class);
         startActivity(intent);
         overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
+    }
+
+    private void updateCoinDisplay() {
+        if (coinCountText != null && coinManager != null) {
+            coinCountText.setText(String.valueOf(coinManager.getCoins()));
+        }
     }
 
     @Override

@@ -62,19 +62,22 @@ public class GameProgressManager {
      */
     public void markLevelCompleted(String mode, int currentLevel) {
         SharedPreferences.Editor editor = prefs.edit();
+
+        // Mark level as completed
         editor.putBoolean(KEY_COMPLETED_LEVELS + mode + "_" + currentLevel, true);
 
-        // Unlock next level in this mode
+        // ✅ Auto unlock next level
         int nextLevel = currentLevel + 1;
         if (nextLevel <= MAX_LEVEL) {
             int savedLevel = getCurrentLevel(mode);
             if (nextLevel > savedLevel) {
                 editor.putInt(KEY_CURRENT_LEVEL + mode, nextLevel);
+                Log.d(TAG, "✅ Unlocked level " + nextLevel + " in " + mode + " mode");
             }
         }
 
         editor.apply();
-        Log.d(TAG, "Level " + currentLevel + " completed in " + mode + " mode");
+        Log.d(TAG, "✅ Level " + currentLevel + " completed in " + mode + " mode");
     }
 
     /**

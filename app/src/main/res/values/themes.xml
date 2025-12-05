@@ -10,10 +10,71 @@
         <item name="colorOnSurface">@color/md_theme_light_onSurface</item>
     </style>
 
-    <style name="Theme.PuzzleAssemble" parent="Base.Theme.PuzzleAssemble" />
-    <style name="Theme.Splash" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="android:windowFullscreen">true</item>
-        <item name="android:windowTranslucentStatus">true</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
+    <!-- THÊM THEME CHÍNH NÀY (QUAN TRỌNG!) -->
+    <style name="Theme.PuzzleAssemble" parent="Base.Theme.PuzzleAssemble">
+        <!-- Có thể customize thêm nếu cần -->
     </style>
+
+    <style name="Theme.BrainQuest" parent="Theme.Material3.Light.NoActionBar">
+        <!-- Primary Brand Color -->
+        <item name="colorPrimary">@color/brainquest_purple</item>
+        <item name="colorOnPrimary">@color/brainquest_white</item>
+        <item name="colorPrimaryContainer">@color/brainquest_purple_light</item>
+        <item name="colorOnPrimaryContainer">@color/brainquest_dark</item>
+
+        <!-- Secondary Color -->
+        <item name="colorSecondary">@color/brainquest_blue</item>
+        <item name="colorOnSecondary">@color/brainquest_white</item>
+        <item name="colorSecondaryContainer">@color/brainquest_blue_light</item>
+
+        <!-- Background -->
+        <item name="android:colorBackground">@color/background_primary</item>
+        <item name="colorSurface">@color/brainquest_white</item>
+        <item name="colorOnSurface">@color/brainquest_dark</item>
+
+        <!-- Status Bar -->
+        <item name="android:statusBarColor">@color/brainquest_purple</item>
+        <item name="android:windowLightStatusBar">false</item>
+
+        <!-- Navigation Bar -->
+        <item name="android:navigationBarColor">@color/brainquest_white</item>
+
+        <!-- Accent Color -->
+        <item name="colorAccent">@color/brainquest_gold</item>
+
+        <!-- Error Color -->
+        <item name="colorError">#EF4444</item>
+    </style>
+
+    <style name="BrainQuest.Button.Primary" parent="Widget.Material3.Button">
+        <item name="backgroundTint">@color/brainquest_purple</item>
+        <item name="android:textColor">@color/brainquest_white</item>
+        <item name="cornerRadius">12dp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="BrainQuest.Button.Secondary" parent="Widget.Material3.Button.TonalButton">
+        <item name="backgroundTint">@color/brainquest_blue</item>
+        <item name="android:textColor">@color/brainquest_white</item>
+        <item name="cornerRadius">12dp</item>
+    </style>
+
+    <!-- Card Style -->
+    <style name="BrainQuest.Card" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardCornerRadius">16dp</item>
+        <item name="cardElevation">4dp</item>
+        <item name="cardBackgroundColor">@color/brainquest_white</item>
+    </style>
+
+    <!-- Splash Activity Theme (existing, keep as is) -->
+    <style name="Theme.Splash" parent="Theme.Material3.Light.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+
+        <!-- ✅ THÊM: Set windowBackground = custom splash drawable -->
+        <item name="android:windowBackground">@drawable/splash_window_background</item>
+        <item name="android:windowDisablePreview">true</item>
+    </style>
+
+
+
 </resources>

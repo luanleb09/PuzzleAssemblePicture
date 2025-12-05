@@ -14,8 +14,10 @@ public class LevelSelectionActivity extends AppCompatActivity {
 
     private RecyclerView levelRecyclerView;
     private TextView titleText;
+    private TextView coinCountText;
     private GameProgressManager progressManager;
     private PuzzleImageLoader imageLoader;
+    private CoinManager coinManager;
     private String selectedMode;
     private AdView adView;
 
@@ -26,15 +28,20 @@ public class LevelSelectionActivity extends AppCompatActivity {
 
         progressManager = new GameProgressManager(this);
         imageLoader = new PuzzleImageLoader(this);
+        coinManager = new CoinManager(this);
         selectedMode = getIntent().getStringExtra("MODE");
 
         titleText = findViewById(R.id.titleText);
+        coinCountText = findViewById(R.id.coinCountText);
         levelRecyclerView = findViewById(R.id.levelRecyclerView);
 
         findViewById(R.id.backButton).setOnClickListener(v -> finish());
 
         String modeDisplayName = getModeDisplayName(selectedMode);
         titleText.setText(modeDisplayName + " - Select Level");
+
+        // Update coin display
+        updateCoinDisplay();
 
         levelRecyclerView.setLayoutManager(new GridLayoutManager(this, 5));
 
@@ -46,6 +53,12 @@ public class LevelSelectionActivity extends AppCompatActivity {
         AdMobHelper.initialize(this);
         adView = findViewById(R.id.adView);
         AdMobHelper.loadBannerAd(adView);
+    }
+
+    private void updateCoinDisplay() {
+        if (coinCountText != null) {
+            coinCountText.setText(coinManager.getFormattedCoinsWithIcon());
+        }
     }
 
     private String getModeDisplayName(String mode) {
@@ -68,7 +81,7 @@ public class LevelSelectionActivity extends AppCompatActivity {
             boolean hasSave = progressManager.hasSavedGame(selectedMode, i);
             int gridSize = progressManager.getGridSizeForLevel(i);
 
-            // THÊM: Kiểm tra xem level có cần download không
+            // Kiểm tra xem level có cần download không
             boolean needsDownload = imageLoader.needsDownload(i);
 
             items.add(new LevelItem(i, isCompleted, isUnlocked, hasSave, gridSize, needsDownload));
@@ -85,7 +98,7 @@ public class LevelSelectionActivity extends AppCompatActivity {
             return;
         }
 
-        // THÊM: Kiểm tra và download asset pack nếu cần
+        // Kiểm tra và download asset pack nếu cần
         if (item.needsDownload) {
             showDownloadDialog(item);
         } else {
@@ -141,6 +154,24 @@ public class LevelSelectionActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+
+        // Update coin display when returning from GameActivity
+        updateCoinDisplay();
+
+        // Refresh level list khi quay lại
+        new Thread(() -> {
+            List<LevelItem> levelItems = createLevelItems();
+
+            runOnUiThread(() -> {
+                LevelItemAdapter adapter = new LevelItemAdapter(levelItems, this::onLevelSelected);
+                levelRecyclerView.setAdapter(adapter);
+            });
+        }).start();
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         if (imageLoader != null) {
@@ -155,7 +186,7 @@ public class LevelSelectionActivity extends AppCompatActivity {
         public boolean isUnlocked;
         public boolean hasSave;
         public int gridSize;
-        public boolean needsDownload; // THÊM field mới
+        public boolean needsDownload;
 
         public LevelItem(int levelNumber, boolean isCompleted, boolean isUnlocked,
                          boolean hasSave, int gridSize, boolean needsDownload) {
