@@ -18,6 +18,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.OvershootInterpolator;
+import android.widget.Scroller;
+import android.view.VelocityTracker;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,7 +39,7 @@ public class PuzzleView extends View {
     private List<PuzzlePiece> allPieces;
     private PuzzleConfig config;
     private PuzzleListener listener;
-    private Bitmap fullImage; // Store full image for completion
+    private Bitmap fullImage;
 
     private float gridX, gridY;
     private int gridWidth, gridHeight;
@@ -49,25 +51,53 @@ public class PuzzleView extends View {
     private float draggedPieceX, draggedPieceY;
     private boolean isDragging = false;
 
+    // Selection mode for zoomed swap
+    private PuzzlePiece selectedPiece;
+    private int selectedRow = -1;
+    private int selectedCol = -1;
+
     private Paint paint;
     private Paint dimPaint;
     private Paint gridPaint;
     private Paint borderPaint;
+    private Paint selectedPaint;
+    private Paint resetButtonPaint;
+    private Paint resetIconPaint;
 
-    // Animation states
     private boolean isAnimating = false;
     private boolean showingCompletion = false;
 
-    // Animated positions for pieces during swap/shuffle
     private Map<PuzzlePiece, PointF> animatedPositions = new HashMap<>();
-    private float animationProgress = 0f;
 
+    // Reset zoom button
+    private RectF resetZoomButtonRect;
+    private static final float RESET_BUTTON_SIZE = 50f;
+    private static final float RESET_BUTTON_WIDTH = 110f;
+    private static final float RESET_BUTTON_MARGIN = 10f;
+
+
+
+    // Completion animation
+    private ValueAnimator completionAnimator;
+    private float completionScale = 1.0f;
+
+    // Pan & Zoom
     private ScaleGestureDetector scaleGestureDetector;
     private float scaleFactor = 1.0f;
-    private float focusX = 0f;
-    private float focusY = 0f;
     private static final float MIN_ZOOM = 1.0f;
-    private static final float MAX_ZOOM = 3.0f;
+    private static final float MAX_ZOOM = 4.0f;
+    private static final float ZOOM_THRESHOLD = 1.2f; // Threshold để chuyển sang swap mode
+
+    private float panX = 0f;
+    private float panY = 0f;
+    private float lastTouchX = 0f;
+    private float lastTouchY = 0f;
+    private boolean isPanning = false;
+
+    private Scroller scroller;
+    private VelocityTracker velocityTracker;
+    private static final int MINIMUM_VELOCITY = 50;
+    private static final int MAXIMUM_VELOCITY = 8000;
 
     public interface PuzzleListener {
         void onPieceConnected();
@@ -96,36 +126,79 @@ public class PuzzleView extends View {
         borderPaint.setStyle(Paint.Style.STROKE);
         borderPaint.setStrokeWidth(3);
 
+        // Paint for selected piece highlight
+        selectedPaint = new Paint();
+        selectedPaint.setStyle(Paint.Style.STROKE);
+        selectedPaint.setStrokeWidth(6);
+        selectedPaint.setColor(Color.rgb(255, 215, 0)); // Gold color
+
+        // Paint for reset button
+        resetButtonPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        resetButtonPaint.setColor(0xAA000000);
+
+        resetIconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        resetIconPaint.setColor(0xFFFFFFFF);
+        resetIconPaint.setStyle(Paint.Style.STROKE);
+        resetIconPaint.setStrokeWidth(3);
+        resetIconPaint.setStrokeCap(Paint.Cap.ROUND);
+
         allPieces = new ArrayList<>();
 
         scaleGestureDetector = new ScaleGestureDetector(getContext(), new ScaleListener());
+        scroller = new Scroller(getContext());
+
+        setLayerType(View.LAYER_TYPE_HARDWARE, null);
     }
 
     private class ScaleListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
         @Override
         public boolean onScale(ScaleGestureDetector detector) {
+            float oldScale = scaleFactor;
             scaleFactor *= detector.getScaleFactor();
             scaleFactor = Math.max(MIN_ZOOM, Math.min(scaleFactor, MAX_ZOOM));
 
-            focusX = detector.getFocusX();
-            focusY = detector.getFocusY();
+            if (scaleFactor != oldScale) {
+                float focusX = detector.getFocusX();
+                float focusY = detector.getFocusY();
+
+                float contentX = (focusX - getWidth() / 2f - panX) / oldScale;
+                float contentY = (focusY - getHeight() / 2f - panY) / oldScale;
+
+                float newContentX = (focusX - getWidth() / 2f - panX) / scaleFactor;
+                float newContentY = (focusY - getHeight() / 2f - panY) / scaleFactor;
+
+                panX += (newContentX - contentX) * scaleFactor;
+                panY += (newContentY - contentY) * scaleFactor;
+
+                float[] bounds = getPanBounds();
+                panX = Math.max(bounds[0], Math.min(bounds[1], panX));
+                panY = Math.max(bounds[2], Math.min(bounds[3], panY));
+            }
 
             invalidate();
             return true;
         }
-    }
 
+        @Override
+        public boolean onScaleBegin(ScaleGestureDetector detector) {
+            if (draggedPiece != null && isDragging) {
+                isDragging = false;
+                draggedPiece = null;
+            }
+            // Clear selection when starting to zoom
+            clearSelection();
+            return true;
+        }
+    }
 
     public void initPuzzle(Bitmap image, PuzzleConfig config, PuzzleListener listener) {
         this.config = config;
         this.listener = listener;
-        this.fullImage = image; // Store full image
+        this.fullImage = image;
         allPieces.clear();
 
         int screenWidth = getWidth();
         int screenHeight = getHeight();
-
-        Log.d(TAG, "Initializing puzzle: " + config.gridSize + "x" + config.gridSize);
 
         int padding = 40;
         int availableWidth = screenWidth - (padding * 2);
@@ -190,127 +263,476 @@ public class PuzzleView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        if (config == null) return;
 
-        canvas.save();
-        canvas.scale(scaleFactor, scaleFactor, focusX, focusY);
-
-        // If showing completion, draw full image instead of pieces
-        if (showingCompletion && fullImage != null) {
-            RectF destRect = new RectF(gridX, gridY, gridX + gridWidth, gridY + gridHeight);
-            canvas.drawBitmap(fullImage, null, destRect, paint);
-
-            // Outer border
-            Paint outerBorder = new Paint();
-            outerBorder.setColor(Color.WHITE);
-            outerBorder.setStyle(Paint.Style.STROKE);
-            outerBorder.setStrokeWidth(5);
-            canvas.drawRect(gridX, gridY, gridX + gridWidth, gridY + gridHeight, outerBorder);
+        if (grid == null || allPieces == null || allPieces.isEmpty()) {
             return;
         }
 
-        // Background
-        Paint bgPaint = new Paint();
-        bgPaint.setColor(Color.argb(50, 0, 0, 0));
-        canvas.drawRect(gridX, gridY, gridX + gridWidth, gridY + gridHeight, bgPaint);
-
-        // Grid lines
-        for (int i = 0; i <= config.gridSize; i++) {
-            float x = gridX + i * cellWidth;
-            float y = gridY + i * cellHeight;
-            canvas.drawLine(x, gridY, x, gridY + gridHeight, gridPaint);
-            canvas.drawLine(gridX, y, gridX + gridWidth, y, gridPaint);
+        // Update fling animation
+        if (scroller.computeScrollOffset()) {
+            panX = scroller.getCurrX();
+            panY = scroller.getCurrY();
+            postInvalidateOnAnimation();
         }
 
-        // Draw pieces (with animation if active)
+        // If showing completion, draw full image with animation
+        if (showingCompletion && fullImage != null) {
+            drawCompletionImage(canvas);
+            return;
+        }
+
+        // Save canvas state
+        canvas.save();
+
+        // Apply zoom and pan transformations
+        canvas.translate(getWidth() / 2f + panX, getHeight() / 2f + panY);
+        canvas.scale(scaleFactor, scaleFactor);
+        canvas.translate(-getWidth() / 2f, -getHeight() / 2f);
+
+        // Draw grid outline
+        canvas.drawRect(gridX, gridY, gridX + gridWidth, gridY + gridHeight, gridPaint);
+
+        // Draw all pieces in grid
         for (int row = 0; row < config.gridSize; row++) {
             for (int col = 0; col < config.gridSize; col++) {
                 PuzzlePiece piece = grid[row][col];
                 if (piece != null && piece != draggedPiece) {
                     // Check if piece has animated position
                     if (animatedPositions.containsKey(piece)) {
-                        PointF animPos = animatedPositions.get(piece);
-                        drawPieceAtPosition(canvas, piece, animPos.x, animPos.y);
+                        PointF pos = animatedPositions.get(piece);
+                        drawPieceAtPosition(canvas, piece, pos.x, pos.y, false);
                     } else {
-                        drawPieceAt(canvas, piece, row, col);
+                        boolean isSelected = (piece == selectedPiece);
+                        drawPieceAt(canvas, piece, row, col, isSelected);
                     }
                 }
             }
         }
 
-        // Draw dragged piece
-        if (draggedPiece != null && isDragging) {
-            drawPieceAtPosition(canvas, draggedPiece, draggedPieceX, draggedPieceY);
-
-            borderPaint.setColor(Color.YELLOW);
-            borderPaint.setStrokeWidth(5);
-            RectF destRect = new RectF(
-                    draggedPieceX,
-                    draggedPieceY,
-                    draggedPieceX + cellWidth,
-                    draggedPieceY + cellHeight
-            );
-            canvas.drawRect(destRect, borderPaint);
+        // Draw dragged piece on top
+        if (isDragging && draggedPiece != null) {
+            drawPieceAtPosition(canvas, draggedPiece, draggedPieceX, draggedPieceY, false);
         }
 
-        // Outer border
-        Paint outerBorder = new Paint();
-        outerBorder.setColor(Color.WHITE);
-        outerBorder.setStyle(Paint.Style.STROKE);
-        outerBorder.setStrokeWidth(5);
-        canvas.drawRect(gridX, gridY, gridX + gridWidth, gridY + gridHeight, outerBorder);
-
+        // Restore canvas
         canvas.restore();
+
+        // Draw zoom indicator and reset button
+        if (scaleFactor > 1.1f) {
+            drawZoomIndicator(canvas);
+            drawResetZoomButton(canvas);
+            if (scaleFactor > ZOOM_THRESHOLD) {
+                drawSwapModeIndicator(canvas);
+            }
+        }
     }
 
-    private void drawPieceAtPosition(Canvas canvas, PuzzlePiece piece, float x, float y) {
+    private void drawZoomIndicator(Canvas canvas) {
+        Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        textPaint.setColor(0xAAFFFFFF);
+        textPaint.setTextSize(32);
+        textPaint.setTextAlign(Paint.Align.RIGHT);
+
+        Paint bgPaint = new Paint();
+        bgPaint.setColor(0x88000000);
+
+        String zoomText = String.format("%.1fx", scaleFactor);
+        float textWidth = textPaint.measureText(zoomText);
+
+        // Calculate positions considering the reset button
+        float resetButtonEstimatedWidth = textPaint.measureText("Reset") + 30 + RESET_BUTTON_MARGIN * 2;
+        float rightEdge = getWidth() - resetButtonEstimatedWidth - 10;
+
+        canvas.drawRoundRect(
+                rightEdge - textWidth - 30, 10,
+                rightEdge, 60,
+                10, 10, bgPaint
+        );
+        canvas.drawText(zoomText, rightEdge - 15, 45, textPaint);
+
+    }
+
+    private void drawResetZoomButton(Canvas canvas) {
+        // Tạo paint cho text trước
+        Paint buttonTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        buttonTextPaint.setColor(0xFFFFFFFF);
+        buttonTextPaint.setTextSize(26);
+        buttonTextPaint.setTextAlign(Paint.Align.CENTER);
+
+        String buttonText = "Reset";
+        float textWidth = buttonTextPaint.measureText(buttonText);
+
+        // Tính button size dựa trên text width + padding
+        float buttonWidth = textWidth + 30; // 15px padding mỗi bên
+        float buttonHeight = 50;
+
+        // Button position
+        float right = getWidth() - RESET_BUTTON_MARGIN;
+        float left = right - buttonWidth;
+        float top = RESET_BUTTON_MARGIN;
+        float bottom = top + buttonHeight;
+
+        resetZoomButtonRect = new RectF(left, top, right, bottom);
+
+        // Draw button background
+        canvas.drawRoundRect(resetZoomButtonRect, 10, 10, resetButtonPaint);
+
+        // Draw text (XÓA toàn bộ code vẽ icon)
+        float centerX = (left + right) / 2;
+        float centerY = (top + bottom) / 2;
+        float textY = centerY - ((buttonTextPaint.descent() + buttonTextPaint.ascent()) / 2);
+
+        canvas.drawText(buttonText, centerX, textY, buttonTextPaint);
+    }
+
+    private void drawCompletionImage(Canvas canvas) {
+        // Draw semi-transparent dark background
+        canvas.drawColor(0xE0000000);
+
+        // Calculate scaled image dimensions maintaining aspect ratio
+        int padding = 80;
+        int availableWidth = getWidth() - (padding * 2);
+        int availableHeight = getHeight() - (padding * 2);
+
+        float imageAspectRatio = (float) fullImage.getHeight() / fullImage.getWidth();
+
+        int displayWidth = availableWidth;
+        int displayHeight = (int) (displayWidth * imageAspectRatio);
+
+        if (displayHeight > availableHeight) {
+            displayHeight = availableHeight;
+            displayWidth = (int) (displayHeight / imageAspectRatio);
+        }
+
+        // Apply completion scale animation
+        displayWidth = (int) (displayWidth * completionScale);
+        displayHeight = (int) (displayHeight * completionScale);
+
+        float left = (getWidth() - displayWidth) / 2f;
+        float top = (getHeight() - displayHeight) / 2f;
+
+        RectF destRect = new RectF(left, top, left + displayWidth, top + displayHeight);
+
+        // Draw the full image (crystal clear, no dimming)
+        canvas.drawBitmap(fullImage, null, destRect, paint);
+
+        // Draw border around image
+        Paint completionBorderPaint = new Paint();
+        completionBorderPaint.setStyle(Paint.Style.STROKE);
+        completionBorderPaint.setStrokeWidth(6);
+        completionBorderPaint.setColor(0xFFFFD700); // Gold
+        canvas.drawRect(destRect, completionBorderPaint);
+
+        // Draw "Puzzle Completed!" text
+        Paint completionTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        completionTextPaint.setColor(0xFFFFD700);
+        completionTextPaint.setTextSize(48);
+        completionTextPaint.setTextAlign(Paint.Align.CENTER);
+        completionTextPaint.setFakeBoldText(true);
+
+//        canvas.drawText("Puzzle Completed!", getWidth() / 2f, top - 30, completionTextPaint);
+    }
+
+    private void drawSwapModeIndicator(Canvas canvas) {
+        Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        textPaint.setColor(0xFFFFD700); // Gold
+        textPaint.setTextSize(28);
+        textPaint.setTextAlign(Paint.Align.LEFT);
+
+        Paint bgPaint = new Paint();
+        bgPaint.setColor(0x88000000);
+
+        String modeText = selectedPiece != null ? "Tap to swap" : "Swap Mode";
+        float textWidth = textPaint.measureText(modeText);
+
+        canvas.drawRoundRect(
+                10, 10,
+                textWidth + 40, 55,
+                10, 10, bgPaint
+        );
+        canvas.drawText(modeText, 25, 40, textPaint);
+    }
+
+    private void drawPieceAtPosition(Canvas canvas, PuzzlePiece piece, float x, float y, boolean isSelected) {
         RectF destRect = new RectF(x, y, x + cellWidth, y + cellHeight);
 
         Paint currentPaint = piece.isLocked() && config.dimLockedPieces ? dimPaint : paint;
         canvas.drawBitmap(piece.getBitmap(), null, destRect, currentPaint);
 
-        if (!piece.isLocked()) {
+        if (isSelected) {
+            // Draw gold border for selected piece
+            canvas.drawRect(destRect, selectedPaint);
+        } else if (!piece.isLocked()) {
             borderPaint.setStrokeWidth(2);
-            borderPaint.setColor(Color.argb(100, 255, 255, 255)); // Viền trắng mờ
+            borderPaint.setColor(Color.argb(100, 255, 255, 255));
             canvas.drawRect(destRect, borderPaint);
         }
     }
 
-    private void drawPieceAt(Canvas canvas, PuzzlePiece piece, int row, int col) {
+    private void drawPieceAt(Canvas canvas, PuzzlePiece piece, int row, int col, boolean isSelected) {
         float x = gridX + col * cellWidth;
         float y = gridY + row * cellHeight;
-        drawPieceAtPosition(canvas, piece, x, y);
+        drawPieceAtPosition(canvas, piece, x, y, isSelected);
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if (isAnimating || showingCompletion) return false;
+        if (grid == null || allPieces == null || allPieces.isEmpty()) {
+            return super.onTouchEvent(event);
+        }
 
-        // Handle zoom gesture
         scaleGestureDetector.onTouchEvent(event);
 
-        // If zooming, don't process drag
-        if (event.getPointerCount() > 1) {
-            return true;
+        if (velocityTracker == null) {
+            velocityTracker = VelocityTracker.obtain();
         }
+        velocityTracker.addMovement(event);
 
-        float x = event.getX();
-        float y = event.getY();
+        int action = event.getActionMasked();
 
-        // Convert touch coordinates to puzzle coordinates (accounting for zoom)
-        float puzzleX = (x - focusX) / scaleFactor + focusX;
-        float puzzleY = (y - focusY) / scaleFactor + focusY;
-
-        switch (event.getAction()) {
+        switch (action) {
             case MotionEvent.ACTION_DOWN:
-                return handleTouchDown(puzzleX, puzzleY);
+                scroller.forceFinished(true);
+                lastTouchX = event.getX();
+                lastTouchY = event.getY();
+
+                // Check if reset zoom button is clicked
+                if (scaleFactor > 1.1f && resetZoomButtonRect != null &&
+                        resetZoomButtonRect.contains(lastTouchX, lastTouchY)) {
+                    animateResetZoom();
+                    return true;
+                }
+
+                // Determine interaction mode based on zoom level
+                if (scaleFactor > ZOOM_THRESHOLD) {
+                    // Swap mode when zoomed
+                    handleSwapModeTouch(getTouchX(lastTouchX), getTouchY(lastTouchY));
+                } else {
+                    // Drag mode when not zoomed
+                    handleTouchDown(getTouchX(lastTouchX), getTouchY(lastTouchY));
+                }
+                break;
+
+            case MotionEvent.ACTION_POINTER_DOWN:
+                if (isDragging && draggedPiece != null) {
+                    isDragging = false;
+                    draggedPiece = null;
+                }
+                clearSelection();
+                isPanning = false;
+                break;
+
             case MotionEvent.ACTION_MOVE:
-                return handleTouchMove(puzzleX, puzzleY);
+                float dx = event.getX() - lastTouchX;
+                float dy = event.getY() - lastTouchY;
+
+                // Priority 1: If dragging a piece, continue dragging (works at any zoom level < threshold)
+                if (isDragging && draggedPiece != null && scaleFactor <= ZOOM_THRESHOLD) {
+                    handleTouchMove(getTouchX(event.getX()), getTouchY(event.getY()));
+                }
+                // Priority 2: Pan mode when zoomed above threshold
+                else if (scaleFactor > ZOOM_THRESHOLD && event.getPointerCount() == 1 &&
+                        (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
+                    isPanning = true;
+                    clearSelection(); // Clear selection when panning
+
+                    float newPanX = panX + dx;
+                    float newPanY = panY + dy;
+
+                    float[] bounds = getPanBounds();
+                    panX = Math.max(bounds[0], Math.min(bounds[1], newPanX));
+                    panY = Math.max(bounds[2], Math.min(bounds[3], newPanY));
+
+                    invalidate();
+                }
+                // Priority 3: Normal drag when not zoomed much and not already panning
+                else if (!isPanning && scaleFactor <= ZOOM_THRESHOLD && !isDragging) {
+                    handleTouchMove(getTouchX(event.getX()), getTouchY(event.getY()));
+                }
+
+                lastTouchX = event.getX();
+                lastTouchY = event.getY();
+                break;
+
             case MotionEvent.ACTION_UP:
-                return handleTouchUp(puzzleX, puzzleY);
+            case MotionEvent.ACTION_CANCEL:
+                // Handle fling for pan mode
+                if (isPanning && scaleFactor > ZOOM_THRESHOLD) {
+                    velocityTracker.computeCurrentVelocity(1000, MAXIMUM_VELOCITY);
+                    float velocityX = velocityTracker.getXVelocity();
+                    float velocityY = velocityTracker.getYVelocity();
+
+                    if (Math.abs(velocityX) > MINIMUM_VELOCITY || Math.abs(velocityY) > MINIMUM_VELOCITY) {
+                        fling(velocityX, velocityY);
+                    }
+                    isPanning = false;
+                }
+                // Handle piece drop for drag mode
+                else if (isDragging && draggedPiece != null && scaleFactor <= ZOOM_THRESHOLD) {
+                    handleTouchUp(getTouchX(event.getX()), getTouchY(event.getY()));
+                }
+
+                if (velocityTracker != null) {
+                    velocityTracker.recycle();
+                    velocityTracker = null;
+                }
+                break;
+
+            case MotionEvent.ACTION_POINTER_UP:
+                if (event.getPointerCount() > 1) {
+                    isPanning = false;
+                }
+                break;
         }
 
-        return super.onTouchEvent(event);
+        return true;
+    }
+
+    private void handleSwapModeTouch(float x, float y) {
+        if (x < gridX || x >= gridX + gridWidth || y < gridY || y >= gridY + gridHeight) {
+            clearSelection();
+            return;
+        }
+
+        int col = (int) Math.floor((x - gridX) / cellWidth);
+        int row = (int) Math.floor((y - gridY) / cellHeight);
+
+        if (row < 0 || row >= config.gridSize || col < 0 || col >= config.gridSize) {
+            clearSelection();
+            return;
+        }
+
+        PuzzlePiece tappedPiece = grid[row][col];
+        if (tappedPiece == null) {
+            clearSelection();
+            return;
+        }
+
+        // If no piece selected yet, select this piece
+        if (selectedPiece == null) {
+            // Cannot select locked pieces
+            if (tappedPiece.isLocked()) {
+                return;
+            }
+
+            selectedPiece = tappedPiece;
+            selectedRow = row;
+            selectedCol = col;
+            vibratePieceShort();
+            invalidate();
+        } else {
+            // A piece is already selected
+            if (tappedPiece == selectedPiece) {
+                // Tapped same piece, deselect
+                clearSelection();
+            } else {
+                // Swap with selected piece
+                if (!tappedPiece.isLocked() && !selectedPiece.isLocked()) {
+                    swapPieces(selectedRow, selectedCol, row, col);
+                    checkLocking();
+
+                    if (listener != null) {
+                        listener.onPieceConnected();
+                    }
+
+                    clearSelection();
+
+                    if (isPuzzleComplete()) {
+                        showCompletionImage();
+                    } else if (listener != null) {
+                        listener.onProgressChanged();
+                    }
+                }
+            }
+        }
+    }
+
+    private void clearSelection() {
+        selectedPiece = null;
+        selectedRow = -1;
+        selectedCol = -1;
+        invalidate();
+    }
+
+    private float[] getPanBounds() {
+        float viewWidth = getWidth();
+        float viewHeight = getHeight();
+
+        float scaledWidth = viewWidth * scaleFactor;
+        float scaledHeight = viewHeight * scaleFactor;
+
+        float maxPanX = (scaledWidth - viewWidth) / 2f;
+        float maxPanY = (scaledHeight - viewHeight) / 2f;
+
+        return new float[] {
+                -maxPanX, maxPanX,
+                -maxPanY, maxPanY
+        };
+    }
+
+    private float getTouchX(float screenX) {
+        return (screenX - getWidth() / 2f - panX) / scaleFactor + getWidth() / 2f;
+    }
+
+    private float getTouchY(float screenY) {
+        return (screenY - getHeight() / 2f - panY) / scaleFactor + getHeight() / 2f;
+    }
+
+    private void fling(float velocityX, float velocityY) {
+        float[] bounds = getPanBounds();
+
+        scroller.fling(
+                (int) panX, (int) panY,
+                (int) velocityX, (int) velocityY,
+                (int) bounds[0], (int) bounds[1],
+                (int) bounds[2], (int) bounds[3]
+        );
+
+        postInvalidateOnAnimation();
+    }
+
+    public void resetPanZoom() {
+        scaleFactor = 1.0f;
+        panX = 0f;
+        panY = 0f;
+        clearSelection();
+        invalidate();
+    }
+
+    private void animateResetZoom() {
+        if (isAnimating) return;
+
+        final float startScale = scaleFactor;
+        final float startPanX = panX;
+        final float startPanY = panY;
+
+        ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
+        animator.setDuration(300);
+        animator.setInterpolator(new AccelerateDecelerateInterpolator());
+
+        animator.addUpdateListener(animation -> {
+            float progress = (float) animation.getAnimatedValue();
+
+            scaleFactor = startScale + (1.0f - startScale) * progress;
+            panX = startPanX * (1f - progress);
+            panY = startPanY * (1f - progress);
+
+            invalidate();
+        });
+
+        animator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                scaleFactor = 1.0f;
+                panX = 0f;
+                panY = 0f;
+                clearSelection();
+                invalidate();
+            }
+        });
+
+        clearSelection();
+        animator.start();
     }
 
     private boolean handleTouchDown(float x, float y) {
@@ -428,23 +850,8 @@ public class PuzzleView extends View {
         grid[toRow][toCol] = temp;
     }
 
-
-    private boolean shouldConnect(PuzzlePiece piece1, PuzzlePiece piece2,
-                                  int row1, int col1, int row2, int col2) {
-        if (!config.autoConnectCorrectPieces) return false;
-
-        int correctRowDiff = piece2.getCorrectRow() - piece1.getCorrectRow();
-        int correctColDiff = piece2.getCorrectCol() - piece1.getCorrectCol();
-
-        int currentRowDiff = row2 - row1;
-        int currentColDiff = col2 - col1;
-
-        return correctRowDiff == currentRowDiff && correctColDiff == currentColDiff;
-    }
-
     private void checkLocking() {
         if (!config.autoLockCorrectPieces) {
-            Log.d(TAG, "Auto-lock DISABLED");
             return;
         }
 
@@ -456,18 +863,14 @@ public class PuzzleView extends View {
                     if (piece.getCorrectRow() == row && piece.getCorrectCol() == col) {
                         piece.setLocked(true);
                         anyLocked = true;
-                        Log.d(TAG, "✓ LOCKED piece at [" + row + "," + col + "]"); // ← Thêm log
                     }
                 }
             }
         }
 
         if (anyLocked) {
-            Log.d(TAG, "Pieces locked, vibrating..."); // ← Thêm log
             vibratePiece();
             invalidate();
-        } else {
-            Log.d(TAG, "No pieces to lock"); // ← Thêm log
         }
     }
 
@@ -483,35 +886,52 @@ public class PuzzleView extends View {
         return true;
     }
 
-    /**
-     * Show full completion image (not pieces)
-     */
     private void showCompletionImage() {
         showingCompletion = true;
-        invalidate();
+        clearSelection();
 
-        // Notify listener immediately
+        // Start completion zoom animation
+        startCompletionAnimation();
+
         if (listener != null) {
             listener.onPuzzleCompleted();
         }
     }
 
+    private void startCompletionAnimation() {
+        if (completionAnimator != null && completionAnimator.isRunning()) {
+            completionAnimator.cancel();
+        }
+
+        completionAnimator = ValueAnimator.ofFloat(0.8f, 1.05f, 1.0f);
+        completionAnimator.setDuration(1200);
+        completionAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+        completionAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        completionAnimator.setRepeatMode(ValueAnimator.REVERSE);
+
+        completionAnimator.addUpdateListener(animation -> {
+            completionScale = (float) animation.getAnimatedValue();
+            invalidate();
+        });
+
+        completionAnimator.start();
+    }
+
     public void hideCompletionImage() {
         showingCompletion = false;
+        if (completionAnimator != null && completionAnimator.isRunning()) {
+            completionAnimator.cancel();
+        }
+        completionScale = 1.0f;
         invalidate();
     }
 
-    /**
-     * AUTO-SOLVE with clear animation
-     */
     public boolean autoSolveOnePiece() {
         if (isAnimating || showingCompletion) {
-            Log.d(TAG, "Cannot auto-solve: isAnimating=" + isAnimating + ", showingCompletion=" + showingCompletion);
             return false;
         }
 
         try {
-            // Find first incorrect piece
             for (int row = 0; row < config.gridSize; row++) {
                 for (int col = 0; col < config.gridSize; col++) {
                     PuzzlePiece piece = grid[row][col];
@@ -521,18 +941,16 @@ public class PuzzleView extends View {
                         int correctCol = piece.getCorrectCol();
 
                         if (correctRow != row || correctCol != col) {
-                            // Check if target position is locked
                             if (correctRow >= 0 && correctRow < config.gridSize &&
                                     correctCol >= 0 && correctCol < config.gridSize) {
 
                                 PuzzlePiece pieceAtCorrectPos = grid[correctRow][correctCol];
 
                                 if (pieceAtCorrectPos != null && pieceAtCorrectPos.isLocked()) {
-                                    Log.d(TAG, "Target position [" + correctRow + "," + correctCol + "] is locked, skip");
                                     continue;
                                 }
 
-                                Log.d(TAG, "Auto-solving: piece from [" + row + "," + col + "] to [" + correctRow + "," + correctCol + "]");
+                                clearSelection();
                                 animateSwap(row, col, correctRow, correctCol);
                                 return true;
                             }
@@ -541,7 +959,6 @@ public class PuzzleView extends View {
                 }
             }
 
-            Log.d(TAG, "No piece to auto-solve");
             return false;
 
         } catch (Exception e) {
@@ -551,9 +968,6 @@ public class PuzzleView extends View {
         }
     }
 
-    /**
-     * Animate swap with CLEAR visual movement
-     */
     private void animateSwap(int fromRow, int fromCol, int toRow, int toCol) {
         isAnimating = true;
         animatedPositions.clear();
@@ -566,12 +980,8 @@ public class PuzzleView extends View {
         float toX = gridX + toCol * cellWidth;
         float toY = gridY + toRow * cellHeight;
 
-        Log.d(TAG, "animateSwap: [" + fromRow + "," + fromCol + "] <-> [" + toRow + "," + toCol + "]");
-
-        // Swap in grid immediately
         swapPieces(fromRow, fromCol, toRow, toCol);
 
-        // Animate visual positions
         ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
         animator.setDuration(800);
         animator.setInterpolator(new OvershootInterpolator(0.8f));
@@ -579,14 +989,12 @@ public class PuzzleView extends View {
         animator.addUpdateListener(animation -> {
             float progress = (float) animation.getAnimatedValue();
 
-            // Piece1 moves from fromPos to toPos
             if (piece1 != null) {
                 float currentX = fromX + (toX - fromX) * progress;
                 float currentY = fromY + (toY - fromY) * progress;
                 animatedPositions.put(piece1, new PointF(currentX, currentY));
             }
 
-            // Piece2 moves from toPos to fromPos
             if (piece2 != null) {
                 float currentX = toX + (fromX - toX) * progress;
                 float currentY = toY + (fromY - toY) * progress;
@@ -602,22 +1010,16 @@ public class PuzzleView extends View {
                 animatedPositions.clear();
                 isAnimating = false;
 
-                // Check connections and locking AFTER swap
                 checkLocking();
-
-                // Force redraw to show dimmed/locked state
                 invalidate();
 
-                // Notify listener
                 if (listener != null) {
                     listener.onPieceConnected();
                 }
 
-                // Check if puzzle is completed
                 if (isPuzzleComplete()) {
                     showCompletionImage();
                 } else if (listener != null) {
-                    // Update progress if not completed
                     listener.onProgressChanged();
                 }
             }
@@ -626,11 +1028,10 @@ public class PuzzleView extends View {
         animator.start();
     }
 
-    /**
-     * SHUFFLE with clear stagger animation
-     */
     public boolean shuffleRemainingPieces() {
         if (isAnimating || showingCompletion) return false;
+
+        clearSelection();
 
         List<PuzzlePiece> incorrectPieces = new ArrayList<>();
         List<int[]> incorrectPositions = new ArrayList<>();
@@ -640,23 +1041,16 @@ public class PuzzleView extends View {
                 PuzzlePiece piece = grid[row][col];
 
                 if (piece != null) {
-                    // ✅ ĐIỀU KIỆN ĐẦY ĐỦ:
-                    // 1. Không locked
-                    // 2. Không đúng vị trí
                     boolean isLocked = piece.isLocked();
                     boolean isCorrectPosition = (piece.getCorrectRow() == row && piece.getCorrectCol() == col);
 
-                    // Chỉ shuffle nếu cả 2 điều kiện: không locked VÀ không đúng vị trí
                     if (!isLocked && !isCorrectPosition) {
                         incorrectPieces.add(piece);
                         incorrectPositions.add(new int[]{row, col});
-                        Log.d(TAG, "Will shuffle piece at [" + row + "," + col + "]");
                     }
                 }
             }
         }
-
-        Log.d(TAG, "Found " + incorrectPieces.size() + " pieces to shuffle");
 
         if (incorrectPieces.isEmpty()) {
             return false;
@@ -666,14 +1060,10 @@ public class PuzzleView extends View {
         return true;
     }
 
-    /**
-     * Animate shuffle with stagger effect
-     */
     private void animateShuffle(List<PuzzlePiece> pieces, List<int[]> oldPositions) {
         isAnimating = true;
         animatedPositions.clear();
 
-        // Store old positions
         Map<PuzzlePiece, PointF> startPositions = new HashMap<>();
         for (int i = 0; i < pieces.size(); i++) {
             int[] pos = oldPositions.get(i);
@@ -682,16 +1072,13 @@ public class PuzzleView extends View {
             startPositions.put(pieces.get(i), new PointF(x, y));
         }
 
-        // Shuffle
         Collections.shuffle(pieces);
 
-        // Put back in grid
         for (int i = 0; i < pieces.size(); i++) {
             int[] pos = oldPositions.get(i);
             grid[pos[0]][pos[1]] = pieces.get(i);
         }
 
-        // Calculate new positions
         Map<PuzzlePiece, PointF> endPositions = new HashMap<>();
         for (int i = 0; i < pieces.size(); i++) {
             int[] pos = oldPositions.get(i);
@@ -700,9 +1087,8 @@ public class PuzzleView extends View {
             endPositions.put(pieces.get(i), new PointF(x, y));
         }
 
-        // Animate
         ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
-        animator.setDuration(1000); // Longer = more visible
+        animator.setDuration(1000);
         animator.setInterpolator(new AccelerateDecelerateInterpolator());
 
         animator.addUpdateListener(animation -> {
@@ -782,6 +1168,8 @@ public class PuzzleView extends View {
     public void loadGameState(GameSaveData saveData) {
         if (saveData == null || saveData.piecePositions == null) return;
 
+        clearSelection();
+
         for (GameSaveData.PiecePosition pos : saveData.piecePositions) {
             for (PuzzlePiece piece : allPieces) {
                 if (piece.getCorrectRow() == pos.correctRow &&
@@ -804,6 +1192,12 @@ public class PuzzleView extends View {
 
     public void cleanup() {
         animatedPositions.clear();
+        clearSelection();
+
+        if (completionAnimator != null && completionAnimator.isRunning()) {
+            completionAnimator.cancel();
+            completionAnimator = null;
+        }
 
         if (allPieces != null) {
             for (PuzzlePiece piece : allPieces) {
@@ -822,6 +1216,15 @@ public class PuzzleView extends View {
         grid = null;
         draggedPiece = null;
         isDragging = false;
+
+        if (velocityTracker != null) {
+            velocityTracker.recycle();
+            velocityTracker = null;
+        }
+
+        if (scroller != null) {
+            scroller.forceFinished(true);
+        }
     }
 
     private void vibratePiece() {
@@ -832,6 +1235,19 @@ public class PuzzleView extends View {
                     vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE));
                 } else {
                     vibrator.vibrate(50);
+                }
+            }
+        }
+    }
+
+    private void vibratePieceShort() {
+        if (SettingsActivity.isVibrationEnabled(getContext())) {
+            Vibrator vibrator = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
+            if (vibrator != null && vibrator.hasVibrator()) {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(25, VibrationEffect.DEFAULT_AMPLITUDE));
+                } else {
+                    vibrator.vibrate(25);
                 }
             }
         }

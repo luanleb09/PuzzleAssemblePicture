@@ -237,6 +237,11 @@ public class GameProgressManager {
         return count;
     }
 
+    public void unlockGalleryPiece(int pieceIndex) {
+        addGalleryPiece(pieceIndex);
+        Log.d(TAG, "Gallery piece " + pieceIndex + " unlocked");
+    }
+
     /**
      * Get list of unlocked gallery pieces
      */

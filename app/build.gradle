@@ -34,6 +34,19 @@ android {
             enableSplit = true
         }
     }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            def projectName = "PuzzleAssemblePicture"
+            def versionName = variant.versionName
+            def versionCode = variant.versionCode
+            def buildType = variant.buildType.name
+            def date = new Date().format('yyyyMMdd')
+
+            outputFileName = "${projectName}_v${versionName}_${buildType}_${date}.apk"
+            // Kết quả: PuzzleAssemblePicture_v1.0_release_20241205.apk
+        }
+    }
 }
 
 dependencies {
@@ -44,7 +57,11 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'com.google.android.play:asset-delivery:2.2.2'
     implementation 'com.google.android.play:asset-delivery-ktx:2.2.2'
+    implementation 'com.google.android.play:app-update:2.1.0'
+    implementation 'com.google.android.play:app-update-ktx:2.1.0'
     implementation 'com.google.android.gms:play-services-ads:23.0.0'
     implementation 'nl.dionsegijn:konfetti-xml:2.0.4'
     implementation 'androidx.core:core-splashscreen:1.0.1'
+    implementation 'com.github.bumptech.glide:glide:4.15.1'
+    annotationProcessor 'com.github.bumptech.glide:compiler:4.15.1'
 }

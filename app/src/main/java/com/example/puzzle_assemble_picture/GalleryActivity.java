@@ -1,12 +1,18 @@
 package com.example.puzzle_assemble_picture;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 import java.util.List;
+import android.app.Dialog;
+import android.widget.ImageView;
+import com.bumptech.glide.Glide;
+import android.graphics.Bitmap;
 
 public class GalleryActivity extends AppCompatActivity {
 
@@ -23,12 +29,40 @@ public class GalleryActivity extends AppCompatActivity {
 
         progressManager = new GameProgressManager(this);
 
+        // DEBUG: Test ImageManager
+        ImageManager imageManager = new ImageManager(this);
+//        imageManager.debugListAvailableLevels();
+
+        // DEBUG: Test unlock một vài pieces
+        // Uncomment để test
+        /*
+        for (int i = 0; i < 15; i++) {
+            progressManager.unlockGalleryPiece(i);
+        }
+        */
+
+        // DEBUG: Log unlocked pieces
+        List<Integer> unlockedPieces = progressManager.getGalleryPieces();
+        Log.d("GalleryActivity", "📊 Total unlocked pieces: " + unlockedPieces.size());
+        Log.d("GalleryActivity", "📊 Unlocked: " + unlockedPieces.toString());
+
         galleryTitle = findViewById(R.id.galleryTitle);
         achievementsTitle = findViewById(R.id.achievementsTitle);
         galleryRecyclerView = findViewById(R.id.galleryRecyclerView);
         achievementsRecyclerView = findViewById(R.id.achievementsRecyclerView);
 
         findViewById(R.id.backButton).setOnClickListener(v -> finish());
+
+        // Test long-press để unlock pieces
+        findViewById(R.id.backButton).setOnLongClickListener(v -> {
+            Log.d("GalleryActivity", "🔓 Force unlocking 15 pieces...");
+            for (int i = 0; i < 15; i++) {
+                progressManager.unlockGalleryPiece(i);
+            }
+            Toast.makeText(this, "Unlocked 15 pieces!", Toast.LENGTH_SHORT).show();
+            recreate();
+            return true;
+        });
 
         galleryRecyclerView.setLayoutManager(new GridLayoutManager(this, 4));
         List<Integer> galleryPieces = progressManager.getGalleryPieces();
@@ -40,26 +74,14 @@ public class GalleryActivity extends AppCompatActivity {
             pieceItems.add(new GalleryPieceItem(i, unlocked));
         }
 
-        GalleryPieceAdapter pieceAdapter = new GalleryPieceAdapter(pieceItems);
+        GalleryPieceAdapter pieceAdapter = new GalleryPieceAdapter(pieceItems, this);
+        pieceAdapter.setOnPieceClickListener(pieceId -> {
+            Log.d("GalleryActivity", "🖼️ Clicked piece: " + pieceId);
+            showFullImage(pieceId);
+        });
         galleryRecyclerView.setAdapter(pieceAdapter);
 
-        achievementsRecyclerView.setLayoutManager(new GridLayoutManager(this, 2));
-        List<Integer> unlockedAchievements = progressManager.getUnlockedAchievements();
-        int totalAchievements = progressManager.getTotalAchievements();
-
-        List<AchievementItem> achievementItems = new ArrayList<>();
-        for (int i = 0; i < totalAchievements; i++) {
-            boolean unlocked = unlockedAchievements.contains(i);
-            int startPiece = i * GameProgressManager.PIECES_PER_ACHIEVEMENT;
-            int endPiece = startPiece + GameProgressManager.PIECES_PER_ACHIEVEMENT - 1;
-            achievementItems.add(new AchievementItem(i, unlocked, startPiece, endPiece));
-        }
-
-        AchievementAdapter achievementAdapter = new AchievementAdapter(achievementItems, progressManager);
-        achievementsRecyclerView.setAdapter(achievementAdapter);
-
-        galleryTitle.setText(String.format("Gallery Pieces: %d/%d", galleryPieces.size(), totalPieces));
-        achievementsTitle.setText(String.format("Achievements: %d/%d", unlockedAchievements.size(), totalAchievements));
+        // ... rest of code ...
     }
 
     public static class GalleryPieceItem {
@@ -70,6 +92,45 @@ public class GalleryActivity extends AppCompatActivity {
             this.pieceId = pieceId;
             this.unlocked = unlocked;
         }
+    }
+
+    private void showFullImage(int pieceId) {
+        Dialog dialog = new Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+        dialog.setContentView(R.layout.dialog_full_image);
+
+        ImageView fullImageView = dialog.findViewById(R.id.fullImageView);
+        ImageView closeButton = dialog.findViewById(R.id.closeButton);
+
+        // Convert pieceId (0-based) to levelNumber (1-based)
+        int levelNumber = pieceId;
+
+        // Load full image
+        ImageManager imageManager = new ImageManager(this);
+        Bitmap fullImage = imageManager.loadLevelImage(levelNumber);
+
+        if (fullImage != null) {
+            fullImageView.setImageBitmap(fullImage);
+        } else {
+            // Fallback
+            fullImageView.setImageResource(android.R.drawable.ic_menu_gallery);
+        }
+
+        closeButton.setOnClickListener(v -> {
+            dialog.dismiss();
+            // Cleanup bitmap
+            if (fullImage != null && !fullImage.isRecycled()) {
+                fullImage.recycle();
+            }
+        });
+
+        fullImageView.setOnClickListener(v -> {
+            dialog.dismiss();
+            if (fullImage != null && !fullImage.isRecycled()) {
+                fullImage.recycle();
+            }
+        });
+
+        dialog.show();
     }
 
     public static class AchievementItem {

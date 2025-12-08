@@ -82,6 +82,7 @@
             android:layout_width="0dp"
             android:layout_height="56dp"
             android:text="🔒 Custom Mode (Coming Soon)"
+            android:visibility="gone"
             android:textSize="16sp"
             android:textStyle="bold"
             android:enabled="false"

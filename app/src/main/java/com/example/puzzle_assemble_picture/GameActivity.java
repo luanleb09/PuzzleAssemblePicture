@@ -24,6 +24,10 @@ import android.widget.ProgressBar;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.Dialog;
+import android.widget.ImageView;
+import com.bumptech.glide.Glide;
+
 public class GameActivity extends AppCompatActivity {
 
     private static final String TAG = "GameActivity";
@@ -316,6 +320,32 @@ public class GameActivity extends AppCompatActivity {
         });
     }
 
+    private void showFullImage(int pieceId) {
+        Dialog dialog = new Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
+        dialog.setContentView(R.layout.dialog_full_image);
+
+        ImageView fullImageView = dialog.findViewById(R.id.fullImageView);
+        ImageView closeButton = dialog.findViewById(R.id.closeButton);
+
+        int imageResId = getResources().getIdentifier(
+                "level_" + pieceId,
+                "drawable",
+                getPackageName()
+        );
+
+        if (imageResId != 0) {
+            Glide.with(this)
+                    .load(imageResId)
+                    .fitCenter()
+                    .into(fullImageView);
+        }
+
+        closeButton.setOnClickListener(v -> dialog.dismiss());
+        fullImageView.setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
+    }
+
     private void showDownloadDialog() {
         if (downloadDialog == null) {
             downloadDialog = new android.app.ProgressDialog(this);
@@ -408,6 +438,8 @@ public class GameActivity extends AppCompatActivity {
 
                 // Show completion overlay with full image blinking
                 showCompletionAnimation();
+                int pieceId = currentLevel - 1; // Convert level (1-based) to pieceId (0-based)
+                progressManager.unlockGalleryPiece(pieceId);
             }
 
             @Override

@@ -4,9 +4,34 @@
         xmlns:app="http://schemas.android.com/apk/res-auto"
         android:id="@+id/pieceCard"
         android:layout_width="match_parent"
-        android:layout_height="80dp"
+        android:layout_height="100dp"
         android:layout_margin="4dp"
-        app:cardCornerRadius="8dp"
-        app:cardElevation="4dp">
+        app:cardElevation="4dp"
+        app:cardCornerRadius="8dp">
+
+    <ImageView
+            android:id="@+id/pieceImageView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:contentDescription="Gallery piece" />
+
+    <!-- Overlay cho locked pieces -->
+    <View
+            android:id="@+id/lockedOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#80000000"
+            android:visibility="gone" />
+
+    <ImageView
+            android:id="@+id/lockIcon"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_gravity="center"
+            android:src="@android:drawable/ic_lock_lock"
+            android:tint="#FFFFFF"
+            android:visibility="gone"
+            android:contentDescription="Locked" />
 
 </com.google.android.material.card.MaterialCardView>
