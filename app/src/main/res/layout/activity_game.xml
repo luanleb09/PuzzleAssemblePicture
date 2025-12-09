@@ -286,24 +286,25 @@
         <Button
                 android:id="@+id/autoSolveButton"
                 android:layout_width="0dp"
-                android:layout_height="48dp"
+                android:layout_height="56dp"
                 android:layout_weight="1"
                 android:text="🎯 Auto-Solve (3)"
                 android:textSize="13sp"
                 android:textStyle="bold"
+                android:layout_marginTop="14dp"
                 style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_marginEnd="4dp" />
-
+                android:layout_marginEnd="2dp"/>
         <Button
                 android:id="@+id/shuffleButton"
                 android:layout_width="0dp"
-                android:layout_height="48dp"
+                android:layout_height="56dp"
                 android:layout_weight="1"
                 android:text="🔀 Shuffle (3)"
                 android:textSize="13sp"
                 android:textStyle="bold"
+                android:layout_marginTop="14dp"
                 style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_marginStart="4dp" />
+                android:layout_marginStart="2dp" />
 
     </LinearLayout>
 
@@ -315,30 +316,38 @@
             android:orientation="horizontal"
             android:padding="12dp"
             android:gravity="center"
-            android:weightSum="2"
+            android:weightSum="3"
             app:layout_constraintBottom_toTopOf="@id/adViewContainer">
+
+        <Button
+                android:id="@+id/shopButton"
+                android:layout_width="0dp"
+                android:layout_height="42dp"
+                android:layout_weight="1"
+                android:text="🛒"
+                android:textSize="18sp"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_marginEnd="2dp" />
 
         <Button
                 android:id="@+id/saveButton"
                 android:layout_width="0dp"
-                android:layout_height="56dp"
+                android:layout_height="42dp"
                 android:layout_weight="1"
-                android:text="💾 Save"
-                android:textSize="15sp"
-                android:textStyle="bold"
+                android:text="💾"
+                android:textSize="18sp"
                 style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_marginEnd="6dp" />
+                android:layout_marginEnd="2dp" />
 
         <Button
                 android:id="@+id/checkButton"
                 android:layout_width="0dp"
-                android:layout_height="56dp"
+                android:layout_height="42dp"
                 android:layout_weight="1"
-                android:text="✓ Check"
-                android:textSize="15sp"
-                android:textStyle="bold"
+                android:text="📊"
+                android:textSize="18sp"
                 style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_marginStart="6dp" />
+                android:layout_marginHorizontal="2dp" />
 
     </LinearLayout>
 

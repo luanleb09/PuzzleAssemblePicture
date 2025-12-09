@@ -14,19 +14,16 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.MobileAds;
-
 import android.widget.ProgressBar;
-
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-
 import android.app.Dialog;
 import android.widget.ImageView;
 import com.bumptech.glide.Glide;
+import android.view.ViewGroup;
 
 public class GameActivity extends AppCompatActivity {
 
@@ -76,6 +73,8 @@ public class GameActivity extends AppCompatActivity {
 
     private InterstitialAdManager interstitialAdManager;
     private boolean isShowingAd = false; // Prevent finish during ad
+    private boolean isLevelCompleted = false;
+    private String currentMode;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,11 +88,18 @@ public class GameActivity extends AppCompatActivity {
             Log.d(TAG, "AdMob initialized");
         });
 
+        findViewById(R.id.btnShop).setOnClickListener(v -> {
+            Intent intent = new Intent(GameActivity.this, ShopActivity.class);
+            startActivity(intent);
+        });
+
         try {
             setContentView(R.layout.activity_game);
 
             currentLevel = getIntent().getIntExtra("LEVEL", 1);
             gameMode = getIntent().getStringExtra("MODE");
+
+            currentMode = gameMode; // Assign to instance variable for use in listeners
 
             progressManager = new GameProgressManager(this);
             imageLoader = new PuzzleImageLoader(this);
@@ -131,6 +137,12 @@ public class GameActivity extends AppCompatActivity {
             saveButton.setOnClickListener(v -> saveGame());
             hintButton.setOnClickListener(v -> showHint());
             findViewById(R.id.backButton).setOnClickListener(v -> showExitDialog());
+
+            // Shop button
+            Button shopButton = findViewById(R.id.shopButton);
+            if (shopButton != null) {
+                shopButton.setOnClickListener(v -> openShop());
+            }
 
         } catch (Exception e) {
             Log.e(TAG, "❌ ERROR in onCreate: ", e);
@@ -170,6 +182,26 @@ public class GameActivity extends AppCompatActivity {
         shuffleButton.setOnClickListener(v -> useShuffle());
 
         updatePowerUpButtons();
+
+        dailyRewardManager = new DailyRewardManager(this);
+        updateButtonStates();
+
+    }
+
+    private void updateButtonStates() {
+        Button autoSolveBtn = findViewById(R.id.btnAutoSolve);
+        Button shuffleBtn = findViewById(R.id.btnShuffle);
+
+        int remainingAutoSolve = dailyRewardManager.getRemainingAutoSolveCount();
+        int remainingShuffle = dailyRewardManager.getRemainingShuffleCount();
+
+        autoSolveBtn.setText("🎯 Auto (" + remainingAutoSolve + "/" +
+                DailyRewardManager.MAX_AUTO_SOLVE_PER_DAY + ")");
+        shuffleBtn.setText("🔀 Shuffle (" + remainingShuffle + "/" +
+                DailyRewardManager.MAX_SHUFFLE_PER_DAY + ")");
+
+        autoSolveBtn.setEnabled(remainingAutoSolve > 0);
+        shuffleBtn.setEnabled(remainingShuffle > 0);
     }
 
     private void showLoadGameDialog() {
@@ -320,6 +352,19 @@ public class GameActivity extends AppCompatActivity {
         });
     }
 
+    private void openShop() {
+        Intent intent = new Intent(this, ShopActivity.class);
+        startActivity(intent);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Update coin display when returning from shop
+        updateCoinDisplay();
+        updatePowerUpButtons();
+    }
+
     private void showFullImage(int pieceId) {
         Dialog dialog = new Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
         dialog.setContentView(R.layout.dialog_full_image);
@@ -435,11 +480,31 @@ public class GameActivity extends AppCompatActivity {
             @Override
             public void onPuzzleCompleted() {
                 playCelebrationSound();
+                if (isLevelCompleted) return;
+                isLevelCompleted = true;
 
-                // Show completion overlay with full image blinking
-                showCompletionAnimation();
-                int pieceId = currentLevel - 1; // Convert level (1-based) to pieceId (0-based)
+                // Mark level as completed
+                progressManager.markLevelCompleted(currentMode, currentLevel);
+
+                // Unlock gallery piece
+                int pieceId = currentLevel - 1;
                 progressManager.unlockGalleryPiece(pieceId);
+
+                // Award coins
+                int reward = CoinManager.getRewardForLevel(currentMode);
+                coinManager.addCoins(reward);
+                updateCoinDisplay();
+
+                // Get unlock message
+                String unlockMessage = progressManager.getUnlockMessage(currentMode, currentLevel);
+
+                // Show completion animation first
+                showCompletionAnimation();
+
+                // Then show tap to continue overlay
+                handler.postDelayed(() -> {
+                    showTapToContinueOverlay(unlockMessage);
+                }, 500);
             }
 
             @Override
@@ -447,6 +512,67 @@ public class GameActivity extends AppCompatActivity {
                 updateStats();
             }
         };
+    }
+
+    private void showCompletionDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("🎉 Level Complete!");
+        int correctPieces = puzzleView.getCorrectPiecesCount();
+        int totalPieces = gridSize * gridSize;
+
+        String message = "Congratulations!\n\n" +
+                "✓ Correct pieces: " + correctPieces + "/" + totalPieces + "\n" +
+                "🎯 Mode: " + getModeDisplayName(currentMode) + "\n" +
+                "📊 Level: " + currentLevel;
+
+        // Add coin reward info
+        int reward = CoinManager.getRewardForLevel(currentMode);
+        message += "\n💰 Coins earned: " + reward;
+
+        builder.setMessage(message);
+        builder.setCancelable(false);
+
+        int nextLevel = currentLevel + 1;
+
+        if (nextLevel <= GameProgressManager.MAX_LEVEL) {
+            builder.setPositiveButton("Next Level", (dialog, which) -> {
+                onLevelCompleted();
+            });
+            builder.setNeutralButton("Level Select", (dialog, which) -> {
+                finish();
+            });
+        } else {
+            builder.setPositiveButton("OK", (dialog, which) -> {
+                finish();
+            });
+        }
+
+        builder.show();
+    }
+
+    private void showTapToContinueOverlay(String unlockMessage) {
+        // Tạo overlay view
+        View overlayView = getLayoutInflater().inflate(R.layout.overlay_tap_to_continue, null);
+
+        TextView messageText = overlayView.findViewById(R.id.tapToContinueText);
+        if (unlockMessage != null) {
+            messageText.setText(unlockMessage + "\n\nTap to continue to next level");
+        } else {
+            messageText.setText("Tap to continue to next level");
+        }
+
+        // Add overlay to root view
+        ViewGroup rootView = findViewById(android.R.id.content);
+        rootView.addView(overlayView);
+
+        // Click anywhere to continue
+        overlayView.setOnClickListener(v -> {
+            rootView.removeView(overlayView);
+            puzzleView.hideCompletionImage();
+
+            // Show completion dialog
+            showCompletionDialog();
+        });
     }
 
     /**

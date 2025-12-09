@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+                                                   xmlns:app="http://schemas.android.com/apk/res-auto"
+                                                   android:layout_width="match_parent"
+                                                   android:layout_height="wrap_content"
+                                                   android:layout_margin="8dp"
+                                                   app:cardElevation="4dp"
+                                                   app:cardCornerRadius="12dp">
+
+    <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:gravity="center_vertical">
+
+        <!-- Icon -->
+        <TextView
+                android:id="@+id/powerUpIcon"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:text="🎯"
+                android:textSize="32sp"
+                android:gravity="center" />
+
+        <!-- Info -->
+        <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="16dp">
+
+            <TextView
+                    android:id="@+id/powerUpName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="+3 Auto-Solve"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/md_theme_light_onBackground" />
+
+            <TextView
+                    android:id="@+id/powerUpDescription"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Add 3 auto-solves for today"
+                    android:textSize="13sp"
+                    android:textColor="@color/md_theme_light_onBackground"
+                    android:alpha="0.7"
+                    android:layout_marginTop="4dp" />
+
+        </LinearLayout>
+
+        <!-- Buy Button -->
+        <Button
+                android:id="@+id/btnBuyPowerUp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="💰 50"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                style="@style/Widget.Material3.Button" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

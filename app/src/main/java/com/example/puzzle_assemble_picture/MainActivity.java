@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
@@ -24,6 +25,7 @@ public class MainActivity extends AppCompatActivity {
     private CoinManager coinManager;
     private GameProgressManager progressManager;
     private AdView adView;
+    private DailyRewardManager dailyRewardManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,6 +70,33 @@ public class MainActivity extends AppCompatActivity {
         btnGallery.setOnClickListener(v -> openGallery());
         btnAchievements.setOnClickListener(v -> openAchievements());
         btnSettings.setOnClickListener(v -> openSettings());
+
+        dailyRewardManager = new DailyRewardManager(this);
+
+        // Check-in button
+        findViewById(R.id.btnDailyCheckIn).setOnClickListener(v -> {
+            showDailyCheckInDialog();
+        });
+
+        // Auto show check-in if available
+        if (dailyRewardManager.canCheckInToday()) {
+            // Show badge or highlight button
+            Button checkInBtn = findViewById(R.id.btnDailyCheckIn);
+            checkInBtn.setText("📅 Daily Check-in ⭐");
+        }
+    }
+
+    private void showDailyCheckInDialog() {
+        DailyCheckInDialog dialog = new DailyCheckInDialog(
+                this,
+                dailyRewardManager,
+                (reward, streak) -> {
+                    // Handle reward (add coins, etc.)
+                    Toast.makeText(this, "Earned " + reward + " coins!", Toast.LENGTH_SHORT).show();
+                    // Update UI
+                }
+        );
+        dialog.show();
     }
 
     @Override

@@ -101,36 +101,46 @@ public class GalleryActivity extends AppCompatActivity {
         ImageView fullImageView = dialog.findViewById(R.id.fullImageView);
         ImageView closeButton = dialog.findViewById(R.id.closeButton);
 
-        // Convert pieceId (0-based) to levelNumber (1-based)
-        int levelNumber = pieceId;
+        try {
+            ImageManager imageManager = new ImageManager(this);
+            Bitmap fullImage = imageManager.loadLevelImage(pieceId);
 
-        // Load full image
-        ImageManager imageManager = new ImageManager(this);
-        Bitmap fullImage = imageManager.loadLevelImage(levelNumber);
+            if (fullImage != null && !fullImage.isRecycled()) {
+                fullImageView.setImageBitmap(fullImage);
+            } else {
+                Log.e("GalleryActivity", "Failed to load image for piece: " + pieceId);
+                fullImageView.setImageResource(android.R.drawable.ic_menu_gallery);
+                Toast.makeText(this, "Image not available", Toast.LENGTH_SHORT).show();
+            }
 
-        if (fullImage != null) {
-            fullImageView.setImageBitmap(fullImage);
-        } else {
-            // Fallback
-            fullImageView.setImageResource(android.R.drawable.ic_menu_gallery);
+            closeButton.setOnClickListener(v -> {
+                try {
+                    dialog.dismiss();
+                    if (fullImage != null && !fullImage.isRecycled()) {
+                        fullImage.recycle();
+                    }
+                } catch (Exception e) {
+                    Log.e("GalleryActivity", "Error closing dialog", e);
+                }
+            });
+
+            fullImageView.setOnClickListener(v -> {
+                try {
+                    dialog.dismiss();
+                    if (fullImage != null && !fullImage.isRecycled()) {
+                        fullImage.recycle();
+                    }
+                } catch (Exception e) {
+                    Log.e("GalleryActivity", "Error closing dialog", e);
+                }
+            });
+
+            dialog.show();
+
+        } catch (Exception e) {
+            Log.e("GalleryActivity", "Error showing full image", e);
+            Toast.makeText(this, "Error loading image", Toast.LENGTH_SHORT).show();
         }
-
-        closeButton.setOnClickListener(v -> {
-            dialog.dismiss();
-            // Cleanup bitmap
-            if (fullImage != null && !fullImage.isRecycled()) {
-                fullImage.recycle();
-            }
-        });
-
-        fullImageView.setOnClickListener(v -> {
-            dialog.dismiss();
-            if (fullImage != null && !fullImage.isRecycled()) {
-                fullImage.recycle();
-            }
-        });
-
-        dialog.show();
     }
 
     public static class AchievementItem {

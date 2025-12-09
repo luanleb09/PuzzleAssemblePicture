@@ -22,9 +22,9 @@ public class GameProgressManager {
 
     // Game constants
     public static final int MAX_LEVEL = 300;
-    public static final int UNLOCK_NORMAL_AT = 20;
-    public static final int UNLOCK_HARD_AT = 20;
-    public static final int UNLOCK_INSANE_AT = 20;
+    public static final int UNLOCK_NORMAL_AT = 10;
+    public static final int UNLOCK_HARD_AT = 10;
+    public static final int UNLOCK_INSANE_AT = 10;
 
     private SharedPreferences prefs;
     private Gson gson;

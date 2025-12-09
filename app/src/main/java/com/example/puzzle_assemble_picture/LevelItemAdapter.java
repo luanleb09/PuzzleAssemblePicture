@@ -52,15 +52,18 @@ public class LevelItemAdapter extends RecyclerView.Adapter<LevelItemAdapter.View
             holder.cardView.setCardBackgroundColor(0xFF424242);
             holder.levelNumber.setTextColor(0xFF757575);
             holder.gridSize.setTextColor(0xFF757575);
-            holder.lockIcon.setVisibility(View.VISIBLE);
-            holder.overlay.setVisibility(View.VISIBLE);
+//            holder.lockIcon.setVisibility(View.VISIBLE);
+//            holder.overlay.setVisibility(View.VISIBLE);
+            holder.lockIcon.setVisibility(View.GONE);
+            holder.overlay.setVisibility(View.GONE);
 
         } else if (item.isCompleted) {
             // Level đã hoàn thành
             holder.cardView.setCardBackgroundColor(0xFF4CAF50);
             holder.levelNumber.setTextColor(0xFFFFFFFF);
             holder.gridSize.setTextColor(0xFFE8F5E9);
-            holder.checkIcon.setVisibility(View.VISIBLE);
+//            holder.checkIcon.setVisibility(View.VISIBLE);
+            holder.checkIcon.setVisibility(View.GONE);
 
             // Hiển thị save icon nếu có
             if (item.hasSave) {

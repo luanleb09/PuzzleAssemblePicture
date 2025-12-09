@@ -220,7 +220,39 @@ public class PuzzleView extends View {
         cellWidth = gridWidth / config.gridSize;
         cellHeight = gridHeight / config.gridSize;
 
-        Bitmap scaledImage = Bitmap.createScaledBitmap(image, gridWidth, gridHeight, true);
+//        Bitmap scaledImage = Bitmap.createScaledBitmap(image, gridWidth, gridHeight, true);
+
+        float imageAspect = (float) image.getWidth() / image.getHeight();
+        float gridAspect = (float) gridWidth / gridHeight;
+
+        Bitmap scaledImage;
+        if (Math.abs(imageAspect - gridAspect) < 0.01f) {
+            // Aspect ratio gần giống nhau, scale trực tiếp
+            scaledImage = Bitmap.createScaledBitmap(image, gridWidth, gridHeight, true);
+        } else {
+            // Aspect ratio khác nhau, cần crop hoặc fit
+            int scaledWidth, scaledHeight;
+            int offsetX = 0, offsetY = 0;
+
+            if (imageAspect > gridAspect) {
+                // Image rộng hơn, scale theo height
+                scaledHeight = gridHeight;
+                scaledWidth = (int) (scaledHeight * imageAspect);
+                offsetX = (scaledWidth - gridWidth) / 2;
+            } else {
+                // Image cao hơn, scale theo width
+                scaledWidth = gridWidth;
+                scaledHeight = (int) (scaledWidth / imageAspect);
+                offsetY = (scaledHeight - gridHeight) / 2;
+            }
+
+            Bitmap tempScaled = Bitmap.createScaledBitmap(image, scaledWidth, scaledHeight, true);
+            scaledImage = Bitmap.createBitmap(tempScaled, offsetX, offsetY, gridWidth, gridHeight);
+
+            if (tempScaled != scaledImage) {
+                tempScaled.recycle();
+            }
+        }
 
         grid = new PuzzlePiece[config.gridSize][config.gridSize];
 
