@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@drawable/background_main"
+        android:padding="16dp">
+
+    <!-- Header -->
+    <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp">
+
+        <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🛒 Shop"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:textColor="@color/md_theme_light_primary"
+                android:layout_centerVertical="true" />
+
+        <Button
+                android:id="@+id/btnCloseShop"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="✕"
+                android:textSize="24sp"
+                android:layout_alignParentEnd="true"
+                style="@style/Widget.Material3.Button.TextButton" />
+
+    </RelativeLayout>
+
+    <!-- Coin Balance -->
+    <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="16dp"
+            android:background="@drawable/rounded_bg">
+
+        <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="💰 Your Balance: "
+                android:textSize="18sp" />
+
+        <TextView
+                android:id="@+id/coinBalanceText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="@color/md_theme_light_primary" />
+
+    </LinearLayout>
+
+    <!-- Power-ups List -->
+    <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/powerUpsRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="16dp"
+            android:clipToPadding="false"
+            android:padding="8dp" />
+
+</LinearLayout>

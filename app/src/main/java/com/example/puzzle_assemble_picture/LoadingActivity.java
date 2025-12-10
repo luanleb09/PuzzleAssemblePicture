@@ -1,68 +1,101 @@
 package com.example.puzzle_assemble_picture;
 
+import android.animation.ValueAnimator;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Loading Activity - Pre-download asset packs và initialize resources
- * Flow: Splash (logo) -> Loading (puzzle_sample.png + download) -> MainActivity
+ * Loading Activity - Preload essentials + Download asset packs
+ * Flow: Splash -> Loading -> MainActivity
  */
 public class LoadingActivity extends AppCompatActivity {
 
     private static final String TAG = "LoadingActivity";
-    private static final int MIN_LOADING_TIME = 1500; // Minimum 1.5s để user thấy loading screen
+    private static final int MIN_LOADING_TIME = 1500; // Minimum 1.5s
 
     private TextView loadingText;
     private ProgressBar progressBar;
-    private PreDownloadManager preDownloadManager;
+    private TextView progressText;
+
     private Handler handler;
     private long startTime;
+    private ExecutorService executorService;
 
-    private boolean adMobInitialized = false;
-    private boolean packDownloadComplete = false;
+    private AtomicInteger totalTasks = new AtomicInteger(0);
+    private AtomicInteger completedTasks = new AtomicInteger(0);
+
+    // Managers
+    private PreDownloadManager preDownloadManager;
+    private GameProgressManager progressManager;
+    private CoinManager coinManager;
+    private PowerUpsManager powerUpsManager;
+    private DailyRewardManager dailyRewardManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_splash); // Reuse layout với puzzle_sample.png
+        setContentView(R.layout.activity_splash);
 
         startTime = System.currentTimeMillis();
         handler = new Handler(Looper.getMainLooper());
+        executorService = Executors.newFixedThreadPool(4); // Parallel loading
 
         loadingText = findViewById(R.id.loadingText);
         progressBar = findViewById(R.id.progressBar);
+        progressText = findViewById(R.id.progressText);
 
-        // Make progress bar horizontal for download progress
         progressBar.setIndeterminate(false);
         progressBar.setMax(100);
         progressBar.setProgress(0);
 
-        preDownloadManager = new PreDownloadManager(this);
+        startLoading();
+    }
 
-        // Start loading tasks in parallel
-        initializeAdMob();
+    private void startLoading() {
+        // Count tasks
+        int tasks = 0;
+        tasks++; // AdMob init
+        tasks++; // Managers init
+        tasks++; // Sound preload
+        tasks++; // Asset pack download
+
+        totalTasks.set(tasks);
+
+        // Start all tasks in parallel
+        loadAdMob();
+        loadManagers();
+        loadSoundEffects();
         downloadNextMissingPack();
     }
 
+    // ============= LOADING TASKS =============
+
     /**
-     * Initialize AdMob in background
+     * Task 1: Initialize AdMob + Preload Interstitial
      */
-    private void initializeAdMob() {
-        updateLoadingText("Initializing ads...");
-
-        new Thread(() -> {
+    private void loadAdMob() {
+        executorService.execute(() -> {
             try {
-                AdMobHelper.initialize(LoadingActivity.this);
-                Log.d(TAG, "AdMob initialized");
+                updateLoadingText("Initializing ads...");
 
-                // ✅ THÊM: Preload interstitial ad ngay sau khi init
-                runOnUiThread(() -> {
+                CountDownLatch latch = new CountDownLatch(1);
+
+                handler.post(() -> {
+                    AdMobHelper.initialize(LoadingActivity.this);
+                    Log.d(TAG, "AdMob initialized");
+
+                    // Preload interstitial ad
                     try {
                         InterstitialAdManager adManager = new InterstitialAdManager(LoadingActivity.this);
                         adManager.loadAd();
@@ -71,110 +104,247 @@ public class LoadingActivity extends AppCompatActivity {
                         Log.e(TAG, "Failed to preload interstitial ad", e);
                     }
 
-                    adMobInitialized = true;
-                    checkIfReadyToNavigate();
+                    latch.countDown();
                 });
+
+                // Wait max 3 seconds
+                latch.await(3, java.util.concurrent.TimeUnit.SECONDS);
 
             } catch (Exception e) {
                 Log.e(TAG, "AdMob init failed", e);
-                runOnUiThread(() -> {
-                    adMobInitialized = true; // Continue anyway
-                    checkIfReadyToNavigate();
-                });
-            }
-        }).start();
-    }
-
-    /**
-     * Download next missing asset pack (pack_001, pack_002, ...)
-     */
-    private void downloadNextMissingPack() {
-        // Get all packs
-        java.util.List<String> allPacks = PreDownloadManager.getAllPackNames();
-
-        // Find first missing pack
-        String packToDownload = null;
-        for (String pack : allPacks) {
-            if (!preDownloadManager.isPackDownloaded(pack)) {
-                packToDownload = pack;
-                break;
-            }
-        }
-
-        if (packToDownload == null) {
-            // All packs downloaded
-            Log.d(TAG, "All asset packs already downloaded");
-            updateLoadingText("Ready!");
-            packDownloadComplete = true;
-            checkIfReadyToNavigate();
-            return;
-        }
-
-        // Download the missing pack
-        final String finalPackName = packToDownload;
-        updateLoadingText("Downloading " + finalPackName + "...");
-
-        preDownloadManager.setProgressListener(new PreDownloadManager.DownloadProgressListener() {
-            @Override
-            public void onDownloadStarted(String packName) {
-                Log.d(TAG, "Started downloading: " + packName);
-                runOnUiThread(() -> {
-                    updateLoadingText("Downloading " + packName + "...");
-                    progressBar.setProgress(0);
-                });
-            }
-
-            @Override
-            public void onDownloadProgress(String packName, int progress) {
-                runOnUiThread(() -> {
-                    progressBar.setProgress(progress);
-                    updateLoadingText("Downloading " + packName + "... " + progress + "%");
-                });
-            }
-
-            @Override
-            public void onDownloadCompleted(String packName) {
-                Log.d(TAG, "Download completed: " + packName);
-                runOnUiThread(() -> {
-                    updateLoadingText("Download complete!");
-                    progressBar.setProgress(100);
-                    packDownloadComplete = true;
-                    checkIfReadyToNavigate();
-                });
-            }
-
-            @Override
-            public void onDownloadFailed(String packName, String error) {
-                Log.e(TAG, "Download failed: " + packName + " - " + error);
-                runOnUiThread(() -> {
-                    updateLoadingText("Download failed, continuing...");
-                    packDownloadComplete = true; // Continue anyway
-                    checkIfReadyToNavigate();
-                });
-            }
-
-            @Override
-            public void onAllDownloadsCompleted() {
-                // Not used in this flow
+            } finally {
+                taskCompleted();
             }
         });
-
-        preDownloadManager.downloadPack(finalPackName);
     }
 
     /**
-     * Check if both tasks completed and minimum time elapsed
+     * Task 2: Initialize all managers
      */
-    private void checkIfReadyToNavigate() {
-        if (!adMobInitialized || !packDownloadComplete) {
-            return; // Wait for both tasks
-        }
+    private void loadManagers() {
+        executorService.execute(() -> {
+            try {
+                updateLoadingText("Loading game data...");
 
+                progressManager = new GameProgressManager(this);
+                coinManager = new CoinManager(this);
+                powerUpsManager = new PowerUpsManager(this);
+                dailyRewardManager = new DailyRewardManager(this);
+                preDownloadManager = new PreDownloadManager(this);
+
+                // Pre-cache some data
+                int totalCompleted = progressManager.getTotalCompletedLevelsAllModes();
+                int coins = coinManager.getCoins();
+                boolean canCheckIn = dailyRewardManager.canCheckInToday();
+
+                Log.d(TAG, "✅ Managers loaded - Levels: " + totalCompleted + ", Coins: " + coins);
+
+                Thread.sleep(300);
+
+            } catch (Exception e) {
+                Log.e(TAG, "Managers init error", e);
+            } finally {
+                taskCompleted();
+            }
+        });
+    }
+
+    /**
+     * Task 3: Preload sound effects
+     */
+    private void loadSoundEffects() {
+        executorService.execute(() -> {
+            try {
+                updateLoadingText("Loading sounds...");
+
+                // ✅ THÊM: Check if sound files exist
+                boolean clickSoundExists = checkResourceExists(R.raw.click_sound);
+                boolean successSoundExists = checkResourceExists(R.raw.success_sound);
+
+                if (!clickSoundExists || !successSoundExists) {
+                    Log.w(TAG, "⚠️ Some sound files missing, skipping preload");
+                    Thread.sleep(200);
+                    taskCompleted();
+                    return;
+                }
+
+                // Pre-cache sound files with timeout
+                android.media.MediaPlayer clickSound = null;
+                android.media.MediaPlayer successSound = null;
+
+                try {
+                    clickSound = android.media.MediaPlayer.create(this, R.raw.click_sound);
+                    if (clickSound != null) {
+                        clickSound.setVolume(0f, 0f);
+                        clickSound.start();
+                        Thread.sleep(50); // Short delay
+                        clickSound.pause();
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error caching click sound", e);
+                } finally {
+                    if (clickSound != null) {
+                        try {
+                            clickSound.release();
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error releasing click sound", e);
+                        }
+                    }
+                }
+
+                try {
+                    successSound = android.media.MediaPlayer.create(this, R.raw.success_sound);
+                    if (successSound != null) {
+                        successSound.setVolume(0f, 0f);
+                        successSound.start();
+                        Thread.sleep(50); // Short delay
+                        successSound.pause();
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Error caching success sound", e);
+                } finally {
+                    if (successSound != null) {
+                        try {
+                            successSound.release();
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error releasing success sound", e);
+                        }
+                    }
+                }
+
+                Log.d(TAG, "✅ Sound effects cached");
+                Thread.sleep(200);
+
+            } catch (Exception e) {
+                Log.e(TAG, "Sound loading error", e);
+            } finally {
+                // ✅ QUAN TRỌNG: Luôn luôn gọi taskCompleted()
+                taskCompleted();
+            }
+        });
+    }
+
+
+    /**
+     * Task 4: Download next missing asset pack
+     */
+    private void downloadNextMissingPack() {
+        executorService.execute(() -> {
+            try {
+                // Wait for preDownloadManager to be ready
+                while (preDownloadManager == null) {
+                    Thread.sleep(100);
+                }
+
+                updateLoadingText("Checking assets...");
+
+                java.util.List<String> allPacks = PreDownloadManager.getAllPackNames();
+
+                // Find first missing pack
+                String packToDownload = null;
+                for (String pack : allPacks) {
+                    if (!preDownloadManager.isPackDownloaded(pack)) {
+                        packToDownload = pack;
+                        break;
+                    }
+                }
+
+                if (packToDownload == null) {
+                    // All packs downloaded
+                    Log.d(TAG, "All asset packs already downloaded");
+                    updateLoadingText("Ready!");
+                    taskCompleted();
+                    return;
+                }
+
+                // Download the missing pack
+                final String finalPackName = packToDownload;
+                final CountDownLatch downloadLatch = new CountDownLatch(1);
+
+                handler.post(() -> {
+                    updateLoadingText("Downloading " + finalPackName + "...");
+
+                    preDownloadManager.setProgressListener(new PreDownloadManager.DownloadProgressListener() {
+                        @Override
+                        public void onDownloadStarted(String packName) {
+                            handler.post(() -> {
+                                updateLoadingText("Downloading " + packName + "...");
+                                updateDownloadProgress(0);
+                            });
+                        }
+
+                        @Override
+                        public void onDownloadProgress(String packName, int progress) {
+                            handler.post(() -> {
+                                updateDownloadProgress(progress);
+                                updateLoadingText("Downloading " + packName + "... " + progress + "%");
+                            });
+                        }
+
+                        @Override
+                        public void onDownloadCompleted(String packName) {
+                            Log.d(TAG, "✅ Download completed: " + packName);
+                            handler.post(() -> {
+                                updateLoadingText("Download complete!");
+                                updateDownloadProgress(100);
+                                downloadLatch.countDown();
+                            });
+                        }
+
+                        @Override
+                        public void onDownloadFailed(String packName, String error) {
+                            Log.e(TAG, "Download failed: " + packName + " - " + error);
+                            handler.post(() -> {
+                                updateLoadingText("Continuing...");
+                                downloadLatch.countDown();
+                            });
+                        }
+
+                        @Override
+                        public void onAllDownloadsCompleted() {
+                            // Not used
+                        }
+                    });
+
+                    preDownloadManager.downloadPack(finalPackName);
+                });
+
+                // Wait for download to complete
+                downloadLatch.await(30, java.util.concurrent.TimeUnit.SECONDS);
+
+            } catch (Exception e) {
+                Log.e(TAG, "Pack download error", e);
+            } finally {
+                taskCompleted();
+            }
+        });
+    }
+
+    // ============= HELPER METHODS =============
+
+    private void taskCompleted() {
+        int completed = completedTasks.incrementAndGet();
+        int total = totalTasks.get();
+        int progress = (int) ((completed / (float) total) * 100);
+
+        handler.post(() -> {
+            animateProgress(progressBar.getProgress(), progress);
+            if (progressText != null) {
+                progressText.setText(completed + "/" + total);
+            }
+
+            // All tasks completed
+            if (completed >= total) {
+                checkIfReadyToNavigate();
+            }
+        });
+    }
+
+    private void checkIfReadyToNavigate() {
         long elapsed = System.currentTimeMillis() - startTime;
         long remainingTime = MIN_LOADING_TIME - elapsed;
 
         if (remainingTime > 0) {
-            // Wait minimum time for UX
             updateLoadingText("Ready!");
             handler.postDelayed(this::navigateToMain, remainingTime);
         } else {
@@ -182,9 +352,37 @@ public class LoadingActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * Navigate to MainActivity
-     */
+    private void animateProgress(int from, int to) {
+        ValueAnimator animator = ValueAnimator.ofInt(from, to);
+        animator.setDuration(300);
+        animator.setInterpolator(new AccelerateDecelerateInterpolator());
+        animator.addUpdateListener(animation -> {
+            progressBar.setProgress((int) animation.getAnimatedValue());
+        });
+        animator.start();
+    }
+
+    private void updateDownloadProgress(int progress) {
+        if (progressBar != null) {
+            progressBar.setProgress(progress);
+        }
+    }
+
+    private void updateLoadingText(String text) {
+        if (loadingText != null) {
+            loadingText.setText(text);
+        }
+    }
+
+    private boolean checkResourceExists(int resourceId) {
+        try {
+            getResources().openRawResource(resourceId).close();
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private void navigateToMain() {
         Intent intent = new Intent(this, MainActivity.class);
         startActivity(intent);
@@ -192,18 +390,14 @@ public class LoadingActivity extends AppCompatActivity {
         overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
     }
 
-    /**
-     * Update loading text
-     */
-    private void updateLoadingText(String text) {
-        if (loadingText != null) {
-            loadingText.setText(text);
-        }
-    }
-
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        if (executorService != null && !executorService.isShutdown()) {
+            executorService.shutdownNow();
+        }
+
         if (handler != null) {
             handler.removeCallbacksAndMessages(null);
         }

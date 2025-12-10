@@ -50,13 +50,65 @@ public class ShopConfig {
 
     // ===== POWER-UPS CATALOG =====
     public static final PowerUp[] POWER_UPS = {
-            new PowerUp("auto_solve_pack", "+3 Auto-Solve", 50, "Add 3 auto-solves for today", "🎯"),
-            new PowerUp("shuffle_pack", "+5 Shuffle", 30, "Add 5 shuffles for today", "🔀"),
-            new PowerUp("hint", "Hint", 20, "Show one correct piece position", "💡"),
-            new PowerUp("unlock_corners", "Unlock Corners", 40, "Auto-place all 4 corner pieces", "📐"),
-            new PowerUp("unlock_edges", "Unlock Edges", 60, "Auto-place all edge pieces", "🔲"),
-            new PowerUp("time_freeze", "Time Freeze", 35, "Pause timer for 5 minutes", "⏸️"),
-            new PowerUp("double_coins", "2x Coins", 100, "Double coin rewards for 1 hour", "🪙")
+            // ✅ Essential Power-ups (được sử dụng trong game)
+            new PowerUp(
+                    "auto_solve_pack",
+                    "🎯 Auto-Solve Pack",
+                    50,
+                    "Add 3 auto-solves to help complete puzzles",
+                    "🎯"
+            ),
+            new PowerUp(
+                    "shuffle_pack",
+                    "🔀 Shuffle Pack",
+                    30,
+                    "Add 5 shuffles to rearrange remaining pieces",
+                    "🔀"
+            ),
+
+            // ✅ Additional Power-ups (coming soon features)
+            new PowerUp(
+                    "hint",
+                    "💡 Hint",
+                    20,
+                    "Show one correct piece position",
+                    "💡"
+            ),
+            new PowerUp(
+                    "unlock_corners",
+                    "📐 Unlock Corners",
+                    40,
+                    "Auto-place all 4 corner pieces instantly",
+                    "📐"
+            ),
+            new PowerUp(
+                    "unlock_edges",
+                    "🔲 Unlock Edges",
+                    60,
+                    "Auto-place all edge pieces instantly",
+                    "🔲"
+            ),
+            new PowerUp(
+                    "reveal_preview",
+                    "👁️ Reveal Preview",
+                    25,
+                    "Show full image for 10 seconds",
+                    "👁️"
+            ),
+            new PowerUp(
+                    "time_freeze",
+                    "⏸️ Time Freeze",
+                    35,
+                    "Pause timer for 5 minutes (timed mode)",
+                    "⏸️"
+            ),
+            new PowerUp(
+                    "double_coins",
+                    "🪙 2x Coins Boost",
+                    100,
+                    "Double coin rewards for next 3 levels",
+                    "🪙"
+            )
     };
 
     // ===== IN-APP PURCHASE IDs (for Google Play) =====
@@ -67,12 +119,12 @@ public class ShopConfig {
     public static final String IAP_COINS_MEGA = "coins_5500";
     public static final String IAP_COINS_ULTIMATE = "coins_12000";
 
-    // ===== PRICES (Easy to modify) =====
+    // ===== PRICES & REWARDS =====
 
     // Daily bonus
     public static final int DAILY_LOGIN_BONUS = 10;
 
-    // Level completion rewards
+    // Level completion rewards (per mode)
     public static final int REWARD_EASY = 5;
     public static final int REWARD_NORMAL = 10;
     public static final int REWARD_HARD = 15;
@@ -84,7 +136,7 @@ public class ShopConfig {
     public static final int REWARD_50_WINS = 250;
     public static final int REWARD_100_WINS = 500;
 
-    // Shop item prices (can be modified easily)
+    // Power-up prices (helper getters - for future dynamic pricing)
     public static int getAutoSolvePackPrice() { return 50; }
     public static int getShufflePackPrice() { return 30; }
     public static int getHintPrice() { return 20; }
@@ -95,18 +147,28 @@ public class ShopConfig {
 
     // ===== HELPER METHODS =====
 
+    /**
+     * Get coins package by ID
+     */
     public static CoinsPackage getCoinsPackageById(String id) {
+        if (id == null || COINS_PACKAGES == null) return null;
+
         for (CoinsPackage pkg : COINS_PACKAGES) {
-            if (pkg.id.equals(id)) {
+            if (pkg != null && id.equals(pkg.id)) {
                 return pkg;
             }
         }
         return null;
     }
 
+    /**
+     * Get power-up by ID
+     */
     public static PowerUp getPowerUpById(String id) {
+        if (id == null || POWER_UPS == null) return null;
+
         for (PowerUp powerUp : POWER_UPS) {
-            if (powerUp.id.equals(id)) {
+            if (powerUp != null && id.equals(powerUp.id)) {
                 return powerUp;
             }
         }
@@ -119,5 +181,18 @@ public class ShopConfig {
     public static String formatPrice(int priceInCents) {
         double dollars = priceInCents / 100.0;
         return String.format("$%.2f", dollars);
+    }
+
+    /**
+     * Check if power-up is currently implemented in game
+     */
+    public static boolean isPowerUpImplemented(String id) {
+        switch (id) {
+            case "auto_solve_pack":
+            case "shuffle_pack":
+                return true; // ✅ Already working
+            default:
+                return false; // 🔜 Coming soon
+        }
     }
 }

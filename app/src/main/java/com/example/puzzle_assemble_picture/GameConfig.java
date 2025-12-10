@@ -14,6 +14,10 @@ public class GameConfig {
     public static final int COST_AUTO_SOLVE = 50;
     public static final int COST_SHUFFLE = 30;
 
+    public static final int PRICE_AUTO_SOLVE = 50;
+    public static final int PRICE_SHUFFLE = 30;
+    public static final int PRICE_HINT = 20;
+
     // Initial coins
     public static final int INITIAL_COINS = 100;
 }

@@ -1,6 +1,5 @@
 package com.example.puzzle_assemble_picture;
 
-import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -35,27 +34,59 @@ public class PowerUpAdapter extends RecyclerView.Adapter<PowerUpAdapter.ViewHold
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        if (powerUps == null || position >= powerUps.length) {
+            return;
+        }
+
         ShopConfig.PowerUp powerUp = powerUps[position];
 
-        holder.iconText.setText(powerUp.icon);
-        holder.nameText.setText(powerUp.name);
-        holder.descriptionText.setText(powerUp.description);
-        holder.buyButton.setText("💰 " + powerUp.coinPrice);
+        if (powerUp == null) {
+            return;
+        }
 
-        boolean canAfford = coinManager.canAfford(powerUp.coinPrice);
-        holder.buyButton.setEnabled(canAfford);
-        holder.buyButton.setAlpha(canAfford ? 1.0f : 0.5f);
+        if (holder.iconText != null) {
+            holder.iconText.setText(powerUp.icon != null ? powerUp.icon : "🎁");
+        }
 
-        holder.buyButton.setOnClickListener(v -> {
-            if (listener != null) {
-                listener.onPurchase(powerUp);
+        if (holder.nameText != null) {
+            holder.nameText.setText(powerUp.name != null ? powerUp.name : "Unknown");
+        }
+
+        if (holder.descriptionText != null) {
+            // ✅ THÊM: Show "Coming Soon" badge nếu chưa implement
+            String description = powerUp.description != null ? powerUp.description : "";
+            if (!ShopConfig.isPowerUpImplemented(powerUp.id)) {
+                description += " 🔜";
             }
-        });
+            holder.descriptionText.setText(description);
+        }
+
+        if (holder.buyButton != null && coinManager != null) {
+            // ✅ THAY ĐỔI: Disable button nếu chưa implement
+            boolean isImplemented = ShopConfig.isPowerUpImplemented(powerUp.id);
+            boolean canAfford = coinManager.canAfford(powerUp.coinPrice);
+
+            if (!isImplemented) {
+                holder.buyButton.setText("🔜 Soon");
+                holder.buyButton.setEnabled(false);
+                holder.buyButton.setAlpha(0.5f);
+            } else {
+                holder.buyButton.setText("💰 " + powerUp.coinPrice);
+                holder.buyButton.setEnabled(canAfford);
+                holder.buyButton.setAlpha(canAfford ? 1.0f : 0.5f);
+            }
+
+            holder.buyButton.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onPurchase(powerUp);
+                }
+            });
+        }
     }
 
     @Override
     public int getItemCount() {
-        return powerUps.length;
+        return powerUps != null ? powerUps.length : 0; // ✅ THÊM: Null check
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {

@@ -45,7 +45,6 @@ public class MainActivity extends AppCompatActivity {
         // Initialize views
         modeRecyclerView = findViewById(R.id.modeRecyclerView);
         btnGallery = findViewById(R.id.btnGallery);
-        btnAchievements = findViewById(R.id.btnAchievements);
         btnSettings = findViewById(R.id.btnSettings);
         progressText = findViewById(R.id.progressText);
 
@@ -68,22 +67,10 @@ public class MainActivity extends AppCompatActivity {
 
         // Setup button listeners
         btnGallery.setOnClickListener(v -> openGallery());
-        btnAchievements.setOnClickListener(v -> openAchievements());
         btnSettings.setOnClickListener(v -> openSettings());
 
         dailyRewardManager = new DailyRewardManager(this);
-
-        // Check-in button
-        findViewById(R.id.btnDailyCheckIn).setOnClickListener(v -> {
-            showDailyCheckInDialog();
-        });
-
-        // Auto show check-in if available
-        if (dailyRewardManager.canCheckInToday()) {
-            // Show badge or highlight button
-            Button checkInBtn = findViewById(R.id.btnDailyCheckIn);
-            checkInBtn.setText("📅 Daily Check-in ⭐");
-        }
+        setupBottomButtons();
     }
 
     private void showDailyCheckInDialog() {
@@ -97,6 +84,52 @@ public class MainActivity extends AppCompatActivity {
                 }
         );
         dialog.show();
+    }
+
+    private void setupBottomButtons() {
+        // Daily Check-in Button
+        Button dailyCheckInBtn = findViewById(R.id.btnDailyCheckIn);
+        dailyCheckInBtn.setOnClickListener(v -> showDailyCheckInDialog());
+        dailyCheckInBtn.setOnLongClickListener(v -> {
+            showTooltip("Daily Check-in - Get free coins every day!");
+            return true;
+        });
+
+        // Highlight if can check in today
+        if (dailyRewardManager.canCheckInToday()) {
+            // Add a subtle badge/indicator
+            dailyCheckInBtn.setAlpha(1.0f);
+        } else {
+            dailyCheckInBtn.setAlpha(0.7f);
+        }
+
+        // Shop Button
+        Button shopBtn = findViewById(R.id.btnShop);
+        shopBtn.setOnClickListener(v -> openShop());
+        shopBtn.setOnLongClickListener(v -> {
+            showTooltip("Shop - Buy power-ups with coins!");
+            return true;
+        });
+
+        // Gallery Button
+        Button galleryBtn = findViewById(R.id.btnGallery);
+        galleryBtn.setOnClickListener(v -> openGallery());
+        galleryBtn.setOnLongClickListener(v -> {
+            showTooltip("Gallery - View completed puzzle images!");
+            return true;
+        });
+
+        // Settings Button
+        Button settingsBtn = findViewById(R.id.btnSettings);
+        settingsBtn.setOnClickListener(v -> openSettings());
+        settingsBtn.setOnLongClickListener(v -> {
+            showTooltip("Settings - Adjust game preferences!");
+            return true;
+        });
+    }
+
+    private void showTooltip(String message) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -228,10 +261,9 @@ public class MainActivity extends AppCompatActivity {
         overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
     }
 
-    private void openAchievements() {
-        Intent intent = new Intent(this, AchievementActivity.class);
+    private void openShop() {
+        Intent intent = new Intent(this, ShopActivity.class);
         startActivity(intent);
-        overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
     }
 
     private void openSettings() {

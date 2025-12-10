@@ -2,7 +2,9 @@ package com.example.puzzle_assemble_picture;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -23,36 +25,43 @@ public class LevelSelectionActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_level_selection);
+        try {
+            super.onCreate(savedInstanceState);
+            setContentView(R.layout.activity_level_selection);
 
-        progressManager = new GameProgressManager(this);
-        imageLoader = new PuzzleImageLoader(this);
-        coinManager = new CoinManager(this);
-        selectedMode = getIntent().getStringExtra("MODE");
+            progressManager = new GameProgressManager(this);
+            imageLoader = new PuzzleImageLoader(this);
+            coinManager = new CoinManager(this);
+            selectedMode = getIntent().getStringExtra("MODE");
 
-        titleText = findViewById(R.id.titleText);
-        coinCountText = findViewById(R.id.coinCountText);
-        levelRecyclerView = findViewById(R.id.levelRecyclerView);
+            titleText = findViewById(R.id.titleText);
+            coinCountText = findViewById(R.id.coinCountText);
+            levelRecyclerView = findViewById(R.id.levelRecyclerView);
 
-        findViewById(R.id.backButton).setOnClickListener(v -> finish());
+            findViewById(R.id.backButton).setOnClickListener(v -> finish());
 
-        String modeDisplayName = getModeDisplayName(selectedMode);
-        titleText.setText(modeDisplayName + " - Select Level");
+            String modeDisplayName = getModeDisplayName(selectedMode);
+            titleText.setText(modeDisplayName + " - Select Level");
 
-        // Update coin display
-        updateCoinDisplay();
+            // Update coin display
+            updateCoinDisplay();
 
-        levelRecyclerView.setLayoutManager(new GridLayoutManager(this, 5));
+            levelRecyclerView.setLayoutManager(new GridLayoutManager(this, 5));
 
-        List<LevelItem> levelItems = createLevelItems();
+            List<LevelItem> levelItems = createLevelItems();
 
-        LevelItemAdapter adapter = new LevelItemAdapter(levelItems, this::onLevelSelected);
-        levelRecyclerView.setAdapter(adapter);
+            LevelItemAdapter adapter = new LevelItemAdapter(levelItems, this::onLevelSelected);
+            levelRecyclerView.setAdapter(adapter);
 
-        AdMobHelper.initialize(this);
-        adView = findViewById(R.id.adView);
-        AdMobHelper.loadBannerAd(adView);
+            AdMobHelper.initialize(this);
+            adView = findViewById(R.id.adView);
+            AdMobHelper.loadBannerAd(adView);
+
+        } catch (Exception e) {
+            Log.e("LevelSelection", "Error in onCreate", e);
+            Toast.makeText(this, "Error loading levels", Toast.LENGTH_SHORT).show();
+            finish();
+        }
     }
 
     private void updateCoinDisplay() {

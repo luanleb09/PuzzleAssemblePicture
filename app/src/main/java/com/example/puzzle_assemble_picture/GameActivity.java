@@ -75,6 +75,7 @@ public class GameActivity extends AppCompatActivity {
     private boolean isShowingAd = false; // Prevent finish during ad
     private boolean isLevelCompleted = false;
     private String currentMode;
+    private DailyRewardManager dailyRewardManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,15 +84,6 @@ public class GameActivity extends AppCompatActivity {
         Log.d(TAG, "=== GameActivity onCreate START ===");
 
         interstitialAdManager = new InterstitialAdManager(this);
-
-        MobileAds.initialize(this, initializationStatus -> {
-            Log.d(TAG, "AdMob initialized");
-        });
-
-        findViewById(R.id.btnShop).setOnClickListener(v -> {
-            Intent intent = new Intent(GameActivity.this, ShopActivity.class);
-            startActivity(intent);
-        });
 
         try {
             setContentView(R.layout.activity_game);
@@ -141,7 +133,10 @@ public class GameActivity extends AppCompatActivity {
             // Shop button
             Button shopButton = findViewById(R.id.shopButton);
             if (shopButton != null) {
-                shopButton.setOnClickListener(v -> openShop());
+                shopButton.setOnClickListener(v -> {
+                    Intent intent = new Intent(GameActivity.this, ShopActivity.class);
+                    startActivity(intent);
+                });
             }
 
         } catch (Exception e) {
@@ -184,25 +179,25 @@ public class GameActivity extends AppCompatActivity {
         updatePowerUpButtons();
 
         dailyRewardManager = new DailyRewardManager(this);
-        updateButtonStates();
+//        updateButtonStates();
 
     }
 
-    private void updateButtonStates() {
-        Button autoSolveBtn = findViewById(R.id.btnAutoSolve);
-        Button shuffleBtn = findViewById(R.id.btnShuffle);
-
-        int remainingAutoSolve = dailyRewardManager.getRemainingAutoSolveCount();
-        int remainingShuffle = dailyRewardManager.getRemainingShuffleCount();
-
-        autoSolveBtn.setText("🎯 Auto (" + remainingAutoSolve + "/" +
-                DailyRewardManager.MAX_AUTO_SOLVE_PER_DAY + ")");
-        shuffleBtn.setText("🔀 Shuffle (" + remainingShuffle + "/" +
-                DailyRewardManager.MAX_SHUFFLE_PER_DAY + ")");
-
-        autoSolveBtn.setEnabled(remainingAutoSolve > 0);
-        shuffleBtn.setEnabled(remainingShuffle > 0);
-    }
+//    private void updateButtonStates() {
+//        Button autoSolveBtn = findViewById(R.id.autoSolveButton);
+//        Button shuffleBtn = findViewById(R.id.shuffleButton);
+//
+//        int remainingAutoSolve = dailyRewardManager.getRemainingAutoSolveCount();
+//        int remainingShuffle = dailyRewardManager.getRemainingShuffleCount();
+//
+//        autoSolveBtn.setText("🎯 Auto (" + remainingAutoSolve + "/" +
+//                DailyRewardManager.MAX_AUTO_SOLVE_PER_DAY + ")");
+//        shuffleBtn.setText("🔀 Shuffle (" + remainingShuffle + "/" +
+//                DailyRewardManager.MAX_SHUFFLE_PER_DAY + ")");
+//
+//        autoSolveBtn.setEnabled(remainingAutoSolve > 0);
+//        shuffleBtn.setEnabled(remainingShuffle > 0);
+//    }
 
     private void showLoadGameDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -504,7 +499,7 @@ public class GameActivity extends AppCompatActivity {
                 // Then show tap to continue overlay
                 handler.postDelayed(() -> {
                     showTapToContinueOverlay(unlockMessage);
-                }, 500);
+                }, 5000);
             }
 
             @Override
@@ -515,6 +510,8 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private void showCompletionDialog() {
+        cancelAllCompletionAnimations();
+
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("🎉 Level Complete!");
         int correctPieces = puzzleView.getCorrectPiecesCount();
@@ -565,14 +562,52 @@ public class GameActivity extends AppCompatActivity {
         ViewGroup rootView = findViewById(android.R.id.content);
         rootView.addView(overlayView);
 
+        // ✅ THÊM: Fade in animation cho overlay
+        overlayView.setAlpha(0f);
+        overlayView.animate()
+                .alpha(1f)
+                .setDuration(500)
+                .start();
+
         // Click anywhere to continue
         overlayView.setOnClickListener(v -> {
-            rootView.removeView(overlayView);
-            puzzleView.hideCompletionImage();
+            // ✅ Fade out animation
+            overlayView.animate()
+                    .alpha(0f)
+                    .setDuration(300)
+                    .withEndAction(() -> {
+                        rootView.removeView(overlayView);
+                        puzzleView.hideCompletionImage();
 
-            // Show completion dialog
-            showCompletionDialog();
+                        // Show completion dialog
+                        showCompletionDialog();
+                    })
+                    .start();
         });
+
+        TextView fingerIcon = overlayView.findViewById(R.id.fingerIcon);
+        if (fingerIcon != null) {
+            android.view.animation.AlphaAnimation blink = new android.view.animation.AlphaAnimation(0.3f, 1.0f);
+            blink.setDuration(800);
+            blink.setRepeatCount(android.view.animation.Animation.INFINITE);
+            blink.setRepeatMode(android.view.animation.Animation.REVERSE);
+            fingerIcon.startAnimation(blink);
+        }
+    }
+
+    private void cancelAllCompletionAnimations() {
+        // Cancel all pending handlers
+        handler.removeCallbacksAndMessages(null);
+
+        // Stop celebration effects
+        if (konfettiView != null) {
+            konfettiView.stopGracefully();
+        }
+
+        // Stop scale animation
+        if (levelCompleteText != null) {
+            levelCompleteText.clearAnimation();
+        }
     }
 
     /**
@@ -600,9 +635,9 @@ public class GameActivity extends AppCompatActivity {
                     }, 3000); // ← CHỜ 3 giây để xem full image
 
                     // Sau 6 giây (3s xem + 3s animation), navigate
-                    handler.postDelayed(() -> {
-                        onLevelCompleted();
-                    }, 6000); // ← Tổng 6 giây
+//                    handler.postDelayed(() -> {
+//                        onLevelCompleted();
+//                    }, 6000); // ← Tổng 6 giây
                 })
                 .start();
     }
@@ -879,11 +914,25 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private void saveGame() {
-        GameSaveData saveData = puzzleView.getSaveData();
-        saveData.level = currentLevel;
-        progressManager.saveGameState(gameMode, currentLevel, saveData);
-        Toast.makeText(this, "💾 Game saved!", Toast.LENGTH_SHORT).show();
-        playClickSound();
+        if (puzzleView == null || !puzzleView.isInitialized()) {
+            Log.d(TAG, "Puzzle not initialized yet, skip save");
+            return;
+        }
+
+        try {
+            GameSaveData saveData = puzzleView.getSaveData();
+            if (saveData == null) {
+                Log.e(TAG, "getSaveData returned null");
+                return;
+            }
+
+            saveData.level = currentLevel;
+            progressManager.saveGameState(gameMode, currentLevel, saveData);
+            Toast.makeText(this, "💾 Game saved!", Toast.LENGTH_SHORT).show();
+            playClickSound();
+        } catch (Exception e) {
+            Log.e(TAG, "Error saving game", e);
+        }
     }
 
     private void showHint() {
@@ -1034,7 +1083,11 @@ public class GameActivity extends AppCompatActivity {
         super.onPause();
 
         // Don't auto-save if showing ad or puzzle completed
-        if (!isShowingAd && SettingsActivity.isAutoSaveEnabled(this) && !puzzleView.isPuzzleCompleted()) {
+        if (!isShowingAd &&
+                SettingsActivity.isAutoSaveEnabled(this) &&
+                puzzleView != null &&
+                puzzleView.isInitialized() &&  // ← THÊM CHECK NÀY
+                !puzzleView.isPuzzleCompleted()) {
             saveGame();
         }
     }

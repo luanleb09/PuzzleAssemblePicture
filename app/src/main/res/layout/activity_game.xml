@@ -278,7 +278,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:padding="8dp"
+            android:padding="2dp"
             android:gravity="center"
             android:weightSum="2"
             app:layout_constraintBottom_toTopOf="@id/buttonBar">
@@ -291,7 +291,7 @@
                 android:text="🎯 Auto-Solve (3)"
                 android:textSize="13sp"
                 android:textStyle="bold"
-                android:layout_marginTop="14dp"
+                android:layout_marginTop="2dp"
                 style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_marginEnd="2dp"/>
         <Button
@@ -302,7 +302,7 @@
                 android:text="🔀 Shuffle (3)"
                 android:textSize="13sp"
                 android:textStyle="bold"
-                android:layout_marginTop="14dp"
+                android:layout_marginTop="2dp"
                 style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_marginStart="2dp" />
 
@@ -314,7 +314,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:padding="12dp"
+            android:padding="2dp"
             android:gravity="center"
             android:weightSum="3"
             app:layout_constraintBottom_toTopOf="@id/adViewContainer">

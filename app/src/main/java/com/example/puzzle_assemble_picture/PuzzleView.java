@@ -918,6 +918,10 @@ public class PuzzleView extends View {
         return true;
     }
 
+    public boolean isInitialized() {
+        return config != null && grid != null && allPieces != null && !allPieces.isEmpty();
+    }
+
     private void showCompletionImage() {
         showingCompletion = true;
         clearSelection();
@@ -1176,6 +1180,12 @@ public class PuzzleView extends View {
     }
 
     public GameSaveData getSaveData() {
+
+        if (!isInitialized()) {
+            Log.w(TAG, "Cannot get save data - puzzle not initialized");
+            return null;
+        }
+
         GameSaveData saveData = new GameSaveData();
 
         for (int row = 0; row < config.gridSize; row++) {
