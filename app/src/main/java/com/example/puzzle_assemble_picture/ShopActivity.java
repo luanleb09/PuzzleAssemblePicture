@@ -14,6 +14,7 @@ public class ShopActivity extends AppCompatActivity {
 
     private CoinManager coinManager;
     private DailyRewardManager dailyRewardManager;
+    private PowerUpsManager powerUpsManager; // ✅ FIX: Khai báo variable
     private TextView coinBalanceText;
     private RecyclerView powerUpsRecyclerView;
 
@@ -22,16 +23,15 @@ public class ShopActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         try {
-            // ✅ THAY ĐỔI: Sử dụng activity_shop.xml thay vì dialog_shop.xml
             setContentView(R.layout.activity_shop);
 
             coinManager = new CoinManager(this);
             dailyRewardManager = new DailyRewardManager(this);
+            powerUpsManager = new PowerUpsManager(this); // ✅ FIX: Initialize
 
             coinBalanceText = findViewById(R.id.coinBalanceText);
             powerUpsRecyclerView = findViewById(R.id.powerUpsRecyclerView);
 
-            // ✅ THÊM: Null check cho buttons
             if (findViewById(R.id.btnCloseShop) != null) {
                 findViewById(R.id.btnCloseShop).setOnClickListener(v -> finish());
             }
@@ -67,8 +67,8 @@ public class ShopActivity extends AppCompatActivity {
 
             powerUpsRecyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-            // ✅ KIỂM TRA: ShopConfig.POWER_UPS có tồn tại không
-            if (ShopConfig.POWER_UPS == null || ShopConfig.POWER_UPS.isEmpty()) {
+            // ✅ FIX: Array check - use .length thay vì .isEmpty()
+            if (ShopConfig.POWER_UPS == null || ShopConfig.POWER_UPS.length == 0) {
                 Log.w(TAG, "⚠️ ShopConfig.POWER_UPS is empty");
                 Toast.makeText(this, "Shop is empty", Toast.LENGTH_SHORT).show();
                 return;
@@ -82,7 +82,7 @@ public class ShopActivity extends AppCompatActivity {
 
             powerUpsRecyclerView.setAdapter(adapter);
 
-            Log.d(TAG, "✅ Power-ups adapter set successfully");
+            Log.d(TAG, "✅ Power-ups adapter set with " + ShopConfig.POWER_UPS.length + " items");
 
         } catch (Exception e) {
             Log.e(TAG, "Error setting up power-ups", e);
@@ -97,7 +97,7 @@ public class ShopActivity extends AppCompatActivity {
                 return;
             }
 
-            // ✅ CHECK: Is this power-up implemented?
+            // Check if power-up is implemented
             if (!ShopConfig.isPowerUpImplemented(powerUp.id)) {
                 Toast.makeText(this, "🔜 Coming soon! Stay tuned for updates", Toast.LENGTH_LONG).show();
                 return;
@@ -114,6 +114,7 @@ public class ShopActivity extends AppCompatActivity {
                 case "auto_solve_pack":
                     success = coinManager.spendCoins(powerUp.coinPrice);
                     if (success) {
+                        // ✅ FIX: powerUpsManager đã được khai báo và init
                         powerUpsManager.addUses(PowerUpsManager.PowerUpType.AUTO_SOLVE, 3);
                         Toast.makeText(this, "✨ Purchased! +3 Auto-Solves", Toast.LENGTH_SHORT).show();
                     }
@@ -127,7 +128,7 @@ public class ShopActivity extends AppCompatActivity {
                     }
                     break;
 
-                // ✅ FUTURE: Add more cases when implemented
+                // Future power-ups
                 case "hint":
                 case "unlock_corners":
                 case "unlock_edges":
@@ -153,6 +154,17 @@ public class ShopActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(TAG, "Error handling purchase", e);
             Toast.makeText(this, "Purchase failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateCoinBalance();
+
+        // Refresh adapter khi quay lại từ game
+        if (powerUpsRecyclerView != null && powerUpsRecyclerView.getAdapter() != null) {
+            powerUpsRecyclerView.getAdapter().notifyDataSetChanged();
         }
     }
 }

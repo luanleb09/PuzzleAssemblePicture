@@ -59,8 +59,21 @@ public class PowerUpsManager {
         // Check and reset daily if needed
         checkAndResetDaily();
 
-        // Preload rewarded ad
-        loadRewardedAd();
+        // ❌ XÓA: Không load ad trong constructor
+        // loadRewardedAd();
+
+        // ✅ THAY ĐỔI: Ad sẽ được load lazily khi cần
+        Log.d(TAG, "PowerUpsManager initialized (ads will load on demand)");
+    }
+
+    public void addUses(PowerUpType type, int amount) {
+        String key = getKeyForType(type);
+        int currentUses = prefs.getInt(key, 0);
+        int newUses = currentUses + amount;
+
+        prefs.edit().putInt(key, newUses).apply();
+
+        Log.d(TAG, "✅ Added " + amount + " uses to " + type + " (total: " + newUses + ")");
     }
 
     /**
@@ -112,6 +125,9 @@ public class PowerUpsManager {
             callback.onFailed("Cannot show dialog");
             return;
         }
+
+        // ✅ THÊM: Ensure ad is loading/loaded khi cần
+        ensureAdLoaded();
 
         CoinManager coinManager = new CoinManager(context);
         int cost = (type == PowerUpType.AUTO_SOLVE) ? GameConfig.COST_AUTO_SOLVE : GameConfig.COST_SHUFFLE;
@@ -170,24 +186,39 @@ public class PowerUpsManager {
         }
     }
 
-    /**
-     * Add uses (from watching ad)
-     */
-    public void addUses(PowerUpType type, int amount) {
-        String key = getKeyForType(type);
-        int current = prefs.getInt(key, 0);
-        prefs.edit().putInt(key, current + amount).apply();
-        Log.d(TAG, type + " +" + amount + " uses");
-    }
-
     private String getKeyForType(PowerUpType type) {
         return (type == PowerUpType.AUTO_SOLVE) ? KEY_AUTO_SOLVE_COUNT : KEY_SHUFFLE_COUNT;
     }
 
     /**
-     * Load rewarded ad
+     * ✅ THÊM: Ensure ad is loaded (call this when needed)
+     */
+    private void ensureAdLoaded() {
+        if (rewardedAd == null && !isLoadingAd) {
+            loadRewardedAd();
+        }
+    }
+
+    /**
+     * Load rewarded ad (MUST be called on main thread)
      */
     private void loadRewardedAd() {
+        // ✅ CHECK: Must be on main thread
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            // Not on main thread, post to main thread
+            if (context instanceof Activity) {
+                ((Activity) context).runOnUiThread(this::loadRewardedAdInternal);
+            }
+            return;
+        }
+
+        loadRewardedAdInternal();
+    }
+
+    /**
+     * ✅ PRIVATE: Internal ad loading (guaranteed to be on main thread)
+     */
+    private void loadRewardedAdInternal() {
         if (isLoadingAd || rewardedAd != null) {
             return;
         }
@@ -258,9 +289,6 @@ public class PowerUpsManager {
 
             rewardedAd.show(activity, rewardItem -> {
                 Log.d(TAG, "✓ User earned reward");
-
-                // Grant 1 use (không cần vì sẽ execute ngay)
-                // addUses(type, 1);
 
                 if (pendingCallback != null) {
                     pendingCallback.onSuccess();

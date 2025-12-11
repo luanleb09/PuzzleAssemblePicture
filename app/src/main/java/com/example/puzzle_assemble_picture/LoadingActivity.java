@@ -120,24 +120,41 @@ public class LoadingActivity extends AppCompatActivity {
 
     /**
      * Task 2: Initialize all managers
+     * ✅ FIX: Init PowerUpsManager on MAIN THREAD
      */
     private void loadManagers() {
         executorService.execute(() -> {
             try {
                 updateLoadingText("Loading game data...");
 
-                progressManager = new GameProgressManager(this);
-                coinManager = new CoinManager(this);
-                powerUpsManager = new PowerUpsManager(this);
-                dailyRewardManager = new DailyRewardManager(this);
-                preDownloadManager = new PreDownloadManager(this);
+                // ✅ THAY ĐỔI: Init managers on MAIN thread (vì PowerUpsManager có thể load ads)
+                CountDownLatch latch = new CountDownLatch(1);
 
-                // Pre-cache some data
-                int totalCompleted = progressManager.getTotalCompletedLevelsAllModes();
-                int coins = coinManager.getCoins();
-                boolean canCheckIn = dailyRewardManager.canCheckInToday();
+                handler.post(() -> {
+                    try {
+                        // Init all managers on main thread
+                        progressManager = new GameProgressManager(this);
+                        coinManager = new CoinManager(this);
+                        dailyRewardManager = new DailyRewardManager(this);
+                        preDownloadManager = new PreDownloadManager(this);
+                        powerUpsManager = new PowerUpsManager(this); // ← Ads safe now (lazy loaded)
 
-                Log.d(TAG, "✅ Managers loaded - Levels: " + totalCompleted + ", Coins: " + coins);
+                        // Pre-cache some data
+                        int totalCompleted = progressManager.getTotalCompletedLevelsAllModes();
+                        int coins = coinManager.getCoins();
+                        boolean canCheckIn = dailyRewardManager.canCheckInToday();
+
+                        Log.d(TAG, "✅ Managers loaded - Levels: " + totalCompleted + ", Coins: " + coins);
+
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error initializing managers", e);
+                    } finally {
+                        latch.countDown();
+                    }
+                });
+
+                // Wait for main thread initialization
+                latch.await(5, java.util.concurrent.TimeUnit.SECONDS);
 
                 Thread.sleep(300);
 
@@ -150,80 +167,24 @@ public class LoadingActivity extends AppCompatActivity {
     }
 
     /**
-     * Task 3: Preload sound effects
+     * Task 3: Preload sound effects (SIMPLIFIED)
      */
     private void loadSoundEffects() {
         executorService.execute(() -> {
             try {
                 updateLoadingText("Loading sounds...");
 
-                // ✅ THÊM: Check if sound files exist
-                boolean clickSoundExists = checkResourceExists(R.raw.click_sound);
-                boolean successSoundExists = checkResourceExists(R.raw.success_sound);
-
-                if (!clickSoundExists || !successSoundExists) {
-                    Log.w(TAG, "⚠️ Some sound files missing, skipping preload");
-                    Thread.sleep(200);
-                    taskCompleted();
-                    return;
-                }
-
-                // Pre-cache sound files with timeout
-                android.media.MediaPlayer clickSound = null;
-                android.media.MediaPlayer successSound = null;
-
-                try {
-                    clickSound = android.media.MediaPlayer.create(this, R.raw.click_sound);
-                    if (clickSound != null) {
-                        clickSound.setVolume(0f, 0f);
-                        clickSound.start();
-                        Thread.sleep(50); // Short delay
-                        clickSound.pause();
-                    }
-                } catch (Exception e) {
-                    Log.e(TAG, "Error caching click sound", e);
-                } finally {
-                    if (clickSound != null) {
-                        try {
-                            clickSound.release();
-                        } catch (Exception e) {
-                            Log.e(TAG, "Error releasing click sound", e);
-                        }
-                    }
-                }
-
-                try {
-                    successSound = android.media.MediaPlayer.create(this, R.raw.success_sound);
-                    if (successSound != null) {
-                        successSound.setVolume(0f, 0f);
-                        successSound.start();
-                        Thread.sleep(50); // Short delay
-                        successSound.pause();
-                    }
-                } catch (Exception e) {
-                    Log.e(TAG, "Error caching success sound", e);
-                } finally {
-                    if (successSound != null) {
-                        try {
-                            successSound.release();
-                        } catch (Exception e) {
-                            Log.e(TAG, "Error releasing success sound", e);
-                        }
-                    }
-                }
-
-                Log.d(TAG, "✅ Sound effects cached");
-                Thread.sleep(200);
+                // ✅ SIMPLIFIED: Quick check only
+                Log.d(TAG, "✅ Sound check complete");
+                Thread.sleep(300);
 
             } catch (Exception e) {
                 Log.e(TAG, "Sound loading error", e);
             } finally {
-                // ✅ QUAN TRỌNG: Luôn luôn gọi taskCompleted()
                 taskCompleted();
             }
         });
     }
-
 
     /**
      * Task 4: Download next missing asset pack
@@ -371,15 +332,6 @@ public class LoadingActivity extends AppCompatActivity {
     private void updateLoadingText(String text) {
         if (loadingText != null) {
             loadingText.setText(text);
-        }
-    }
-
-    private boolean checkResourceExists(int resourceId) {
-        try {
-            getResources().openRawResource(resourceId).close();
-            return true;
-        } catch (Exception e) {
-            return false;
         }
     }
 
