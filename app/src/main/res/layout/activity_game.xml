@@ -19,13 +19,13 @@
         <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:padding="8dp">
+                android:padding="2dp">
 
             <!-- Back Button -->
             <ImageButton
                     android:id="@+id/backButton"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
                     android:src="@android:drawable/ic_menu_revert"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="Back"
@@ -118,7 +118,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_margin="12dp"
+            android:layout_margin="6dp"
             app:layout_constraintTop_toBottomOf="@id/topBar"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
@@ -266,7 +266,10 @@
             android:id="@+id/puzzleView"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            android:layout_margin="16dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="4dp"
+            android:layout_marginLeft="6dp"
+            android:layout_marginRight="6dp"
             app:layout_constraintTop_toBottomOf="@id/topInfoLayout"
             app:layout_constraintBottom_toTopOf="@id/powerUpsBar"
             app:layout_constraintStart_toStartOf="parent"

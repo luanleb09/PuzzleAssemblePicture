@@ -1,107 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:layout_width="match_parent"
-              android:layout_height="wrap_content"
-              android:orientation="vertical"
-              android:padding="24dp"
-              android:background="@android:color/white">
+<LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:background="@android:color/white">
 
     <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="📅 Daily Check-in"
+            android:text="Daily Check-In"
             android:textSize="24sp"
             android:textStyle="bold"
-            android:textColor="@color/md_theme_light_primary"
             android:layout_gravity="center"
             android:layout_marginBottom="16dp" />
 
-    <TextView
-            android:id="@+id/streakText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Current Streak: 0 days 🔥"
-            android:textSize="18sp"
-            android:layout_gravity="center"
-            android:layout_marginBottom="20dp" />
-
-    <!-- 7 Day Grid -->
-    <GridLayout
+    <!-- ✅ Calendar container -->
+    <LinearLayout
+            android:id="@+id/calendarLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:columnCount="7"
-            android:layout_marginBottom="20dp">
+            android:orientation="vertical"
+            android:layout_marginBottom="16dp" />
 
-        <!-- Day 1 -->
-        <LinearLayout
-                android:id="@+id/day1Layout"
-                android:layout_width="0dp"
+    <!-- Buttons -->
+    <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end">
+
+        <Button
+                android:id="@+id/btnClose"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:orientation="vertical"
-                android:gravity="center"
-                android:padding="4dp">
-            <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Day 1"
-                    android:textSize="12sp" />
-            <TextView
-                    android:id="@+id/day1Reward"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="10"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-        </LinearLayout>
+                android:text="Close"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_marginEnd="8dp" />
 
-        <!-- Repeat for Day 2-7 -->
-        <LinearLayout android:id="@+id/day2Layout" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="4dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Day 2" android:textSize="12sp" />
-            <TextView android:id="@+id/day2Reward" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="15" android:textSize="16sp" android:textStyle="bold" />
-        </LinearLayout>
+        <Button
+                android:id="@+id/btnCheckIn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Check In"
+                style="@style/Widget.Material3.Button" />
 
-        <LinearLayout android:id="@+id/day3Layout" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="4dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Day 3" android:textSize="12sp" />
-            <TextView android:id="@+id/day3Reward" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="20" android:textSize="16sp" android:textStyle="bold" />
-        </LinearLayout>
-
-        <LinearLayout android:id="@+id/day4Layout" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="4dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Day 4" android:textSize="12sp" />
-            <TextView android:id="@+id/day4Reward" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="25" android:textSize="16sp" android:textStyle="bold" />
-        </LinearLayout>
-
-        <LinearLayout android:id="@+id/day5Layout" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="4dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Day 5" android:textSize="12sp" />
-            <TextView android:id="@+id/day5Reward" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="30" android:textSize="16sp" android:textStyle="bold" />
-        </LinearLayout>
-
-        <LinearLayout android:id="@+id/day6Layout" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="4dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Day 6" android:textSize="12sp" />
-            <TextView android:id="@+id/day6Reward" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="40" android:textSize="16sp" android:textStyle="bold" />
-        </LinearLayout>
-
-        <LinearLayout android:id="@+id/day7Layout" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:orientation="vertical" android:gravity="center" android:padding="4dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Day 7" android:textSize="12sp" />
-            <TextView android:id="@+id/day7Reward" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="50" android:textSize="16sp" android:textStyle="bold" />
-        </LinearLayout>
-
-    </GridLayout>
-
-    <Button
-            android:id="@+id/btnCheckIn"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:text="Check In Now!"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-    <Button
-            android:id="@+id/btnClose"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Close"
-            android:layout_marginTop="8dp"
-            style="@style/Widget.Material3.Button.TextButton" />
+    </LinearLayout>
 
 </LinearLayout>

@@ -28,7 +28,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/app_name"
-                android:textSize="32sp"
+                android:textSize="48sp"
                 android:textStyle="bold"
                 android:textColor="@color/md_theme_light_primary"
                 android:layout_gravity="center"
@@ -82,9 +82,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:padding="1dp"
+            android:padding="2dp"
             android:gravity="center"
-            android:weightSum="4"
+            android:weightSum="5"
             android:layout_marginBottom="2dp"
             app:layout_constraintBottom_toTopOf="@id/adViewContainer">
 

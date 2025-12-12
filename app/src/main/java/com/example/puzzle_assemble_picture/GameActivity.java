@@ -16,13 +16,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
-import com.google.android.gms.ads.MobileAds;
 import android.widget.ProgressBar;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import android.app.Dialog;
-import android.widget.ImageView;
-import com.bumptech.glide.Glide;
 import android.view.ViewGroup;
 
 public class GameActivity extends AppCompatActivity {
@@ -60,6 +56,10 @@ public class GameActivity extends AppCompatActivity {
     private PowerUpsManager powerUpsManager;
     private Button autoSolveButton;
     private Button shuffleButton;
+    private Button solveCornersButton;
+    private Button solveEdgesButton;
+    private Button revealPreviewButton;
+
     private ProgressBar progressBar;
     private TextView lockedCountText;
     private TextView remainingCountText;
@@ -72,7 +72,7 @@ public class GameActivity extends AppCompatActivity {
     private Handler handler = new Handler(Looper.getMainLooper());
 
     private InterstitialAdManager interstitialAdManager;
-    private boolean isShowingAd = false; // Prevent finish during ad
+    private boolean isShowingAd = false;
     private boolean isLevelCompleted = false;
     private String currentMode;
     private DailyRewardManager dailyRewardManager;
@@ -91,7 +91,7 @@ public class GameActivity extends AppCompatActivity {
             currentLevel = getIntent().getIntExtra("LEVEL", 1);
             gameMode = getIntent().getStringExtra("MODE");
 
-            currentMode = gameMode; // Assign to instance variable for use in listeners
+            currentMode = gameMode;
 
             progressManager = new GameProgressManager(this);
             imageLoader = new PuzzleImageLoader(this);
@@ -164,6 +164,10 @@ public class GameActivity extends AppCompatActivity {
 
         autoSolveButton = findViewById(R.id.autoSolveButton);
         shuffleButton = findViewById(R.id.shuffleButton);
+        solveCornersButton = findViewById(R.id.solveCornersButton);
+        solveEdgesButton = findViewById(R.id.solveEdgesButton);
+        solveEdgesButton = findViewById(R.id.revealPreviewButton);
+
         progressBar = findViewById(R.id.progressBar);
         lockedCountText = findViewById(R.id.lockedCountText);
         remainingCountText = findViewById(R.id.remainingCountText);
@@ -175,29 +179,14 @@ public class GameActivity extends AppCompatActivity {
 
         autoSolveButton.setOnClickListener(v -> useAutoSolve());
         shuffleButton.setOnClickListener(v -> useShuffle());
+        solveCornersButton.setOnClickListener(v -> useSolveCorners());
+        solveEdgesButton.setOnClickListener(v -> useSolveEdges());
+        solveEdgesButton.setOnClickListener(v -> useRevealPreview());
 
         updatePowerUpButtons();
 
         dailyRewardManager = new DailyRewardManager(this);
-//        updateButtonStates();
-
     }
-
-//    private void updateButtonStates() {
-//        Button autoSolveBtn = findViewById(R.id.autoSolveButton);
-//        Button shuffleBtn = findViewById(R.id.shuffleButton);
-//
-//        int remainingAutoSolve = dailyRewardManager.getRemainingAutoSolveCount();
-//        int remainingShuffle = dailyRewardManager.getRemainingShuffleCount();
-//
-//        autoSolveBtn.setText("🎯 Auto (" + remainingAutoSolve + "/" +
-//                DailyRewardManager.MAX_AUTO_SOLVE_PER_DAY + ")");
-//        shuffleBtn.setText("🔀 Shuffle (" + remainingShuffle + "/" +
-//                DailyRewardManager.MAX_SHUFFLE_PER_DAY + ")");
-//
-//        autoSolveBtn.setEnabled(remainingAutoSolve > 0);
-//        shuffleBtn.setEnabled(remainingShuffle > 0);
-//    }
 
     private void showLoadGameDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -347,43 +336,11 @@ public class GameActivity extends AppCompatActivity {
         });
     }
 
-    private void openShop() {
-        Intent intent = new Intent(this, ShopActivity.class);
-        startActivity(intent);
-    }
-
     @Override
     protected void onResume() {
         super.onResume();
-        // Update coin display when returning from shop
         updateCoinDisplay();
         updatePowerUpButtons();
-    }
-
-    private void showFullImage(int pieceId) {
-        Dialog dialog = new Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
-        dialog.setContentView(R.layout.dialog_full_image);
-
-        ImageView fullImageView = dialog.findViewById(R.id.fullImageView);
-        ImageView closeButton = dialog.findViewById(R.id.closeButton);
-
-        int imageResId = getResources().getIdentifier(
-                "level_" + pieceId,
-                "drawable",
-                getPackageName()
-        );
-
-        if (imageResId != 0) {
-            Glide.with(this)
-                    .load(imageResId)
-                    .fitCenter()
-                    .into(fullImageView);
-        }
-
-        closeButton.setOnClickListener(v -> dialog.dismiss());
-        fullImageView.setOnClickListener(v -> dialog.dismiss());
-
-        dialog.show();
     }
 
     private void showDownloadDialog() {
@@ -496,10 +453,10 @@ public class GameActivity extends AppCompatActivity {
                 // Show completion animation first
                 showCompletionAnimation();
 
-                // Then show tap to continue overlay
+                // ✅ FIX: Delay 6.5s để celebration effects chạy xong
                 handler.postDelayed(() -> {
                     showTapToContinueOverlay(unlockMessage);
-                }, 5000);
+                }, 3000); // ← CHỜ 6.5 giây (3s image + 3.5s effects)
             }
 
             @Override
@@ -509,43 +466,7 @@ public class GameActivity extends AppCompatActivity {
         };
     }
 
-    private void showCompletionDialog() {
-        cancelAllCompletionAnimations();
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("🎉 Level Complete!");
-        int correctPieces = puzzleView.getCorrectPiecesCount();
-        int totalPieces = gridSize * gridSize;
-
-        String message = "Congratulations!\n\n" +
-                "✓ Correct pieces: " + correctPieces + "/" + totalPieces + "\n" +
-                "🎯 Mode: " + getModeDisplayName(currentMode) + "\n" +
-                "📊 Level: " + currentLevel;
-
-        // Add coin reward info
-        int reward = CoinManager.getRewardForLevel(currentMode);
-        message += "\n💰 Coins earned: " + reward;
-
-        builder.setMessage(message);
-        builder.setCancelable(false);
-
-        int nextLevel = currentLevel + 1;
-
-        if (nextLevel <= GameProgressManager.MAX_LEVEL) {
-            builder.setPositiveButton("Next Level", (dialog, which) -> {
-                onLevelCompleted();
-            });
-            builder.setNeutralButton("Level Select", (dialog, which) -> {
-                finish();
-            });
-        } else {
-            builder.setPositiveButton("OK", (dialog, which) -> {
-                finish();
-            });
-        }
-
-        builder.show();
-    }
+    // ❌ XÓA: Bỏ showCompletionDialog() - không cần popup nữa
 
     private void showTapToContinueOverlay(String unlockMessage) {
         // Tạo overlay view
@@ -553,16 +474,15 @@ public class GameActivity extends AppCompatActivity {
 
         TextView messageText = overlayView.findViewById(R.id.tapToContinueText);
         if (unlockMessage != null) {
-            messageText.setText(unlockMessage + "\n\nTap to continue to next level");
+            messageText.setText(unlockMessage + "\n\n✨ Tap anywhere to continue ✨");
         } else {
-            messageText.setText("Tap to continue to next level");
+            messageText.setText("✨ Tap anywhere to continue ✨");
         }
 
         // Add overlay to root view
         ViewGroup rootView = findViewById(android.R.id.content);
         rootView.addView(overlayView);
 
-        // ✅ THÊM: Fade in animation cho overlay
         overlayView.setAlpha(0f);
         overlayView.animate()
                 .alpha(1f)
@@ -571,7 +491,6 @@ public class GameActivity extends AppCompatActivity {
 
         // Click anywhere to continue
         overlayView.setOnClickListener(v -> {
-            // ✅ Fade out animation
             overlayView.animate()
                     .alpha(0f)
                     .setDuration(300)
@@ -579,108 +498,56 @@ public class GameActivity extends AppCompatActivity {
                         rootView.removeView(overlayView);
                         puzzleView.hideCompletionImage();
 
-                        // Show completion dialog
-                        showCompletionDialog();
+                        // ✅ FIX: Navigate trực tiếp, không show dialog
+                        onLevelCompleted();
                     })
                     .start();
         });
-
-        TextView fingerIcon = overlayView.findViewById(R.id.fingerIcon);
-        if (fingerIcon != null) {
-            android.view.animation.AlphaAnimation blink = new android.view.animation.AlphaAnimation(0.3f, 1.0f);
-            blink.setDuration(800);
-            blink.setRepeatCount(android.view.animation.Animation.INFINITE);
-            blink.setRepeatMode(android.view.animation.Animation.REVERSE);
-            fingerIcon.startAnimation(blink);
-        }
-    }
-
-    private void cancelAllCompletionAnimations() {
-        // Cancel all pending handlers
-        handler.removeCallbacksAndMessages(null);
-
-        // Stop celebration effects
-        if (konfettiView != null) {
-            konfettiView.stopGracefully();
-        }
-
-        // Stop scale animation
-        if (levelCompleteText != null) {
-            levelCompleteText.clearAnimation();
-        }
     }
 
     /**
-     * Show completion with FULL CELEBRATION EFFECTS
+     * ✅ FIX: Show celebration animation KHÔNG có black overlay
      */
     private void showCompletionAnimation() {
-        // === GIAI ĐOẠN 1: Show Full Image (KHÔNG có animation) ===
         completionOverlay.setVisibility(View.VISIBLE);
         completionOverlay.setAlpha(1f);
 
-        // ✅ ẨN tất cả effects ban đầu
+        // ẨN tất cả effects ban đầu
         if (konfettiView != null) konfettiView.setVisibility(View.INVISIBLE);
         if (glowOverlay != null) glowOverlay.setVisibility(View.INVISIBLE);
         if (levelCompleteText != null) levelCompleteText.setVisibility(View.INVISIBLE);
-
 
         // Fade in overlay
         completionOverlay.animate()
                 .alpha(1f)
                 .setDuration(1000)
                 .withEndAction(() -> {
-                    // Full image đã hiển thị, CHỜ 3 giây trước khi start animation
                     handler.postDelayed(() -> {
                         startCelebrationEffects();
-                    }, 3000); // ← CHỜ 3 giây để xem full image
-
-                    // Sau 6 giây (3s xem + 3s animation), navigate
-//                    handler.postDelayed(() -> {
-//                        onLevelCompleted();
-//                    }, 6000); // ← Tổng 6 giây
+                    }, 1500);
                 })
                 .start();
     }
 
-    /**
-     * Start all celebration effects combo
-     */
     private void startCelebrationEffects() {
-        // ✅ Show effects overlay
         if (konfettiView != null) konfettiView.setVisibility(View.VISIBLE);
         if (levelCompleteText != null) levelCompleteText.setVisibility(View.VISIBLE);
 
-        // 1. Play celebration sound
         playCelebrationSound();
-
-        // 2. Start confetti
         startKonfettiEffect();
 
-        // 3. Glow effect
-//        startGlowEffect();
-
-        // 4. Scale bounce animation
-//        startScaleBounceEffect();
-
-        // 5. Blink level complete text
         handler.postDelayed(() -> {
             blinkLevelCompleteText();
         }, 1000);
 
-        // 6. Haptic feedback pattern
         playVictoryVibration();
     }
 
-    /**
-     * Konfetti effect - confetti falling from top
-     */
     private void startKonfettiEffect() {
         if (konfettiView == null) return;
 
-        // Play confetti pop sound
         playConfettiSound();
 
-        // Create party configuration
         nl.dionsegijn.konfetti.core.emitter.EmitterConfig emitterConfig =
                 new nl.dionsegijn.konfetti.core.emitter.Emitter(300, java.util.concurrent.TimeUnit.MILLISECONDS).max(100);
 
@@ -691,12 +558,8 @@ public class GameActivity extends AppCompatActivity {
                         nl.dionsegijn.konfetti.core.models.Shape.Circle.INSTANCE
                 ))
                 .colors(java.util.Arrays.asList(
-                        0xFFFFD700, // Gold
-                        0xFFFF6B6B, // Red
-                        0xFF4ECDC4, // Cyan
-                        0xFF45B7D1, // Blue
-                        0xFFFFA07A, // Orange
-                        0xFF98D8C8  // Green
+                        0xFFFFD700, 0xFFFF6B6B, 0xFF4ECDC4,
+                        0xFF45B7D1, 0xFFFFA07A, 0xFF98D8C8
                 ))
                 .setSpeedBetween(0f, 30f)
                 .position(new nl.dionsegijn.konfetti.core.Position.Relative(0.0, 0.0)
@@ -705,68 +568,17 @@ public class GameActivity extends AppCompatActivity {
 
         konfettiView.start(party);
 
-        // Second burst after 800ms
         handler.postDelayed(() -> {
             konfettiView.start(party);
         }, 800);
     }
 
-    /**
-     * Glow effect - pulsating glow around image
-     */
-    private void startGlowEffect() {
-        if (glowOverlay == null) return;
-
-        // Set glow color (gold)
-
-        // ✅ Làm mờ hơn nhiều: 0x40 → 0x10 (chỉ 6% opacity)
-        glowOverlay.setBackgroundColor(0x10FFD700); // Vàng cực nhẹ
-        glowOverlay.setVisibility(View.VISIBLE);
-
-        // Animate glow pulsing
-        android.animation.ObjectAnimator glowAnim = android.animation.ObjectAnimator.ofFloat(
-                glowOverlay, "alpha", 0f, 0.6f, 0f, 0.6f, 0f
-        );
-        glowAnim.setDuration(2000);
-        glowAnim.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
-        glowAnim.start();
-    }
-
-    /**
-     * Scale bounce effect - image bounces with overshoot
-     */
-    private void startScaleBounceEffect() {
-        View puzzleContainer = findViewById(R.id.completionPuzzleView);
-        if (puzzleContainer == null) return;
-
-        puzzleContainer.setScaleX(0.8f);
-        puzzleContainer.setScaleY(0.8f);
-
-        puzzleContainer.animate()
-                .scaleX(1.1f)
-                .scaleY(1.1f)
-                .setDuration(400)
-                .setInterpolator(new android.view.animation.OvershootInterpolator(2.0f))
-                .withEndAction(() -> {
-                    puzzleContainer.animate()
-                            .scaleX(1.0f)
-                            .scaleY(1.0f)
-                            .setDuration(250)
-                            .start();
-                })
-                .start();
-    }
-
-    /**
-     * Victory vibration pattern
-     */
     private void playVictoryVibration() {
         if (!SettingsActivity.isVibrationEnabled(this)) return;
 
         android.os.Vibrator vibrator = (android.os.Vibrator) getSystemService(android.content.Context.VIBRATOR_SERVICE);
         if (vibrator != null && vibrator.hasVibrator()) {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                // Pattern: short-short-long-short-long
                 long[] pattern = {0, 100, 50, 100, 50, 300, 50, 100, 50, 400};
                 android.os.VibrationEffect effect = android.os.VibrationEffect.createWaveform(pattern, -1);
                 vibrator.vibrate(effect);
@@ -776,49 +588,38 @@ public class GameActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * Blink "LEVEL COMPLETE" text (1 second, 2 blinks)
-     */
     private void blinkLevelCompleteText() {
         levelCompleteText.setVisibility(View.VISIBLE);
         levelCompleteText.setAlpha(1f);
 
         AlphaAnimation blink = new AlphaAnimation(0.2f, 1.0f);
         blink.setDuration(400);
-        blink.setRepeatCount(2); // 2 full blinks
+        blink.setRepeatCount(2);
         blink.setRepeatMode(Animation.REVERSE);
 
         levelCompleteText.startAnimation(blink);
     }
 
-    /**
-     * Auto navigate to next level or mode select
-     */
     private void onLevelCompleted() {
-        // ✅ MARK COMPLETED NGAY KHI HOÀN THÀNH
         progressManager.markLevelCompleted(gameMode, currentLevel);
         progressManager.clearGameState(gameMode, currentLevel);
         progressManager.addGalleryPiece(currentLevel - 1);
 
-        // ✅ THÊM: Auto-download pack cho level tiếp theo
         PreDownloadManager preDownloadManager = new PreDownloadManager(this);
         preDownloadManager.autoDownloadNextPack(currentLevel);
 
-        // ✅ REWARD COINS - Rút gọn toast message
         int reward = CoinManager.getRewardForLevel(gameMode);
         coinManager.addCoins(reward);
 
-        // Toast gọn hơn với formatted coin
         Toast.makeText(this,
                 "🪙 " + CoinManager.formatRewardDisplay(reward) + " coins!",
                 Toast.LENGTH_SHORT).show();
 
-        updateCoinDisplay(); // ← Cập nhật UI
+        updateCoinDisplay();
 
         int nextLevel = currentLevel + 1;
 
         if (nextLevel > GameProgressManager.MAX_LEVEL) {
-            // Last level completed
             String message = "🎉 Congratulations!\nYou've completed all levels in " + getModeDisplayName(gameMode) + " mode!";
 
             String unlockMessage = progressManager.getUnlockMessage(gameMode, currentLevel);
@@ -850,7 +651,6 @@ public class GameActivity extends AppCompatActivity {
             });
 
         } else {
-            // ✅ FIX: Đảm bảo level tiếp theo được unlock trước khi navigate
             interstitialAdManager.onLevelCompleted(this, new InterstitialAdManager.AdCallback() {
                 @Override
                 public void onAdShown() {
@@ -985,16 +785,28 @@ public class GameActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * ✅ FIX: Exit không auto-save
+     */
     private void showExitDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Exit Level?");
-        builder.setMessage("Don't forget to save your progress before leaving!");
-        builder.setPositiveButton("Exit", (dialog, which) -> finish());
-        builder.setNegativeButton("Cancel", null);
-        builder.setNeutralButton("Save & Exit", (dialog, which) -> {
-            saveGame();
+        builder.setMessage("Do you want to save your progress?");
+
+        // ✅ FIX: Exit WITHOUT save
+        builder.setPositiveButton("Exit", (dialog, which) -> {
+            // ❌ KHÔNG save khi chọn Exit
             finish();
         });
+
+        builder.setNegativeButton("Cancel", null);
+
+        // ✅ FIX: CHỈ save khi chọn Save & Exit
+        builder.setNeutralButton("Save & Exit", (dialog, which) -> {
+            saveGame(); // ← CHỈ save ở đây
+            finish();
+        });
+
         builder.show();
     }
 
@@ -1047,11 +859,9 @@ public class GameActivity extends AppCompatActivity {
             if (SettingsActivity.isSoundEnabled(this)) {
                 successSound = MediaPlayer.create(this, R.raw.success_sound);
                 clickSound = MediaPlayer.create(this, R.raw.click_sound);
-
-                // Try to load celebration sounds (may not exist yet)
                 try {
-                    celebrationSound = MediaPlayer.create(this, R.raw.success_sound); // Use existing for now
-                    confettiSound = MediaPlayer.create(this, R.raw.click_sound); // Use existing for now
+                    celebrationSound = MediaPlayer.create(this, R.raw.success_sound);
+                    confettiSound = MediaPlayer.create(this, R.raw.click_sound);
                 } catch (Exception e) {
                     Log.d(TAG, "Celebration sounds not found, using defaults");
                 }
@@ -1082,14 +892,13 @@ public class GameActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
 
-        // Don't auto-save if showing ad or puzzle completed
-        if (!isShowingAd &&
-                SettingsActivity.isAutoSaveEnabled(this) &&
-                puzzleView != null &&
-                puzzleView.isInitialized() &&  // ← THÊM CHECK NÀY
-                !puzzleView.isPuzzleCompleted()) {
-            saveGame();
-        }
+//        if (!isShowingAd &&
+//                SettingsActivity.isAutoSaveEnabled(this) &&
+//                puzzleView != null &&
+//                puzzleView.isInitialized() &&
+//                !puzzleView.isPuzzleCompleted()) {
+//            saveGame();
+//        }
     }
 
     private void useAutoSolve() {
@@ -1113,7 +922,7 @@ public class GameActivity extends AppCompatActivity {
                             Toast.makeText(GameActivity.this, "✨ One piece auto-solved!", Toast.LENGTH_SHORT).show();
                             updateStats();
                             updatePowerUpButtons();
-                            updateCoinDisplay(); // ← Cập nhật coin sau khi spend
+                            updateCoinDisplay();
                         }
                     } else {
                         Toast.makeText(GameActivity.this, "No pieces to auto-solve!", Toast.LENGTH_SHORT).show();
@@ -1150,9 +959,83 @@ public class GameActivity extends AppCompatActivity {
                         currentStreak = 0;
                         updateStats();
                         updatePowerUpButtons();
-                        updateCoinDisplay(); // ← Cập nhật coin sau khi spend
+                        updateCoinDisplay();
                     } else {
                         Toast.makeText(GameActivity.this, "No pieces to shuffle!", Toast.LENGTH_SHORT).show();
+                    }
+                }, 1500);
+            }
+
+            @Override
+            public void onFailed(String reason) {
+                isShowingAd = false;
+                Toast.makeText(GameActivity.this, reason, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void useSolveCorners() {
+        if (isShowingAd) {
+            Toast.makeText(this, "Please wait...", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.SOLVE_CORNERS, new PowerUpsManager.PowerUpCallback() {
+            @Override
+            public void onSuccess() {
+                isShowingAd = true;
+
+                boolean solved = puzzleView.solveCorners();
+
+                handler.postDelayed(() -> {
+                    isShowingAd = false;
+
+                    if (solved) {
+                        if (!puzzleView.isPuzzleCompleted()) {
+                            Toast.makeText(GameActivity.this, "📐 All 4 corners solved!", Toast.LENGTH_SHORT).show();
+                            updateStats();
+                            updatePowerUpButtons();
+                            updateCoinDisplay();
+                        }
+                    } else {
+                        Toast.makeText(GameActivity.this, "Corners already solved!", Toast.LENGTH_SHORT).show();
+                    }
+                }, 1500);
+            }
+
+            @Override
+            public void onFailed(String reason) {
+                isShowingAd = false;
+                Toast.makeText(GameActivity.this, reason, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void useSolveEdges() {
+        if (isShowingAd) {
+            Toast.makeText(this, "Please wait...", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.SOLVE_EDGES, new PowerUpsManager.PowerUpCallback() {
+            @Override
+            public void onSuccess() {
+                isShowingAd = true;
+
+                boolean solved = puzzleView.solveEdges();
+
+                handler.postDelayed(() -> {
+                    isShowingAd = false;
+
+                    if (solved) {
+                        if (!puzzleView.isPuzzleCompleted()) {
+                            Toast.makeText(GameActivity.this, "🔲 All edges solved!", Toast.LENGTH_SHORT).show();
+                            updateStats();
+                            updatePowerUpButtons();
+                            updateCoinDisplay();
+                        }
+                    } else {
+                        Toast.makeText(GameActivity.this, "Edges already solved!", Toast.LENGTH_SHORT).show();
                     }
                 }, 1500);
             }
@@ -1168,6 +1051,7 @@ public class GameActivity extends AppCompatActivity {
     private void updatePowerUpButtons() {
         int autoSolveRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.AUTO_SOLVE);
         int shuffleRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.SHUFFLE);
+
 
         if (autoSolveRemaining > 0) {
             autoSolveButton.setText("🎯 Auto-Solve (" + autoSolveRemaining + ")");

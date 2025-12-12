@@ -68,47 +68,26 @@ public class ShopConfig {
 
             // ✅ Additional Power-ups (coming soon features)
             new PowerUp(
-                    "hint",
-                    "💡 Hint",
-                    20,
-                    "Show one correct piece position",
-                    "💡"
-            ),
-            new PowerUp(
-                    "unlock_corners",
-                    "📐 Unlock Corners",
-                    40,
+                    "solve_corners",
+                    "📐 Solve 4 Pieces Corners",
+                    200,
                     "Auto-place all 4 corner pieces instantly",
                     "📐"
             ),
             new PowerUp(
-                    "unlock_edges",
-                    "🔲 Unlock Edges",
-                    60,
+                    "solve_edges",
+                    "🔲 Solve All Edges",
+                    400,
                     "Auto-place all edge pieces instantly",
                     "🔲"
             ),
             new PowerUp(
                     "reveal_preview",
                     "👁️ Reveal Preview",
-                    25,
-                    "Show full image for 10 seconds",
+                    80,
+                    "Show full image for 10 seconds (use for Insane mode)",
                     "👁️"
             ),
-            new PowerUp(
-                    "time_freeze",
-                    "⏸️ Time Freeze",
-                    35,
-                    "Pause timer for 5 minutes (timed mode)",
-                    "⏸️"
-            ),
-            new PowerUp(
-                    "double_coins",
-                    "🪙 2x Coins Boost",
-                    100,
-                    "Double coin rewards for next 3 levels",
-                    "🪙"
-            )
     };
 
     // ===== IN-APP PURCHASE IDs (for Google Play) =====
@@ -190,6 +169,9 @@ public class ShopConfig {
         switch (id) {
             case "auto_solve_pack":
             case "shuffle_pack":
+            case "auto_solve_pack":
+            case "shuffle_pack":
+            case "reveal_preview":
                 return true; // ✅ Already working
             default:
                 return false; // 🔜 Coming soon

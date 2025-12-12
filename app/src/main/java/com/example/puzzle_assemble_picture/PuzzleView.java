@@ -200,13 +200,13 @@ public class PuzzleView extends View {
         int screenWidth = getWidth();
         int screenHeight = getHeight();
 
-        int padding = 40;
+        int padding = 20;
         int availableWidth = screenWidth - (padding * 2);
         int availableHeight = screenHeight - (padding * 2);
 
         float imageAspectRatio = (float) image.getHeight() / image.getWidth();
 
-        gridWidth = (int) (availableWidth * 0.9f);
+        gridWidth = (int) (availableWidth * 0.95f);
         gridHeight = (int) (gridWidth * imageAspectRatio);
 
         if (gridHeight > availableHeight) {
@@ -220,60 +220,96 @@ public class PuzzleView extends View {
         cellWidth = gridWidth / config.gridSize;
         cellHeight = gridHeight / config.gridSize;
 
-//        Bitmap scaledImage = Bitmap.createScaledBitmap(image, gridWidth, gridHeight, true);
-
-        float imageAspect = (float) image.getWidth() / image.getHeight();
-        float gridAspect = (float) gridWidth / gridHeight;
-
-        Bitmap scaledImage;
-        if (Math.abs(imageAspect - gridAspect) < 0.01f) {
-            // Aspect ratio gần giống nhau, scale trực tiếp
-            scaledImage = Bitmap.createScaledBitmap(image, gridWidth, gridHeight, true);
-        } else {
-            // Aspect ratio khác nhau, cần crop hoặc fit
-            int scaledWidth, scaledHeight;
-            int offsetX = 0, offsetY = 0;
-
-            if (imageAspect > gridAspect) {
-                // Image rộng hơn, scale theo height
-                scaledHeight = gridHeight;
-                scaledWidth = (int) (scaledHeight * imageAspect);
-                offsetX = (scaledWidth - gridWidth) / 2;
-            } else {
-                // Image cao hơn, scale theo width
-                scaledWidth = gridWidth;
-                scaledHeight = (int) (scaledWidth / imageAspect);
-                offsetY = (scaledHeight - gridHeight) / 2;
-            }
-
-            Bitmap tempScaled = Bitmap.createScaledBitmap(image, scaledWidth, scaledHeight, true);
-            scaledImage = Bitmap.createBitmap(tempScaled, offsetX, offsetY, gridWidth, gridHeight);
-
-            if (tempScaled != scaledImage) {
-                tempScaled.recycle();
-            }
-        }
-
+        Bitmap scaledImage = Bitmap.createScaledBitmap(image, gridWidth, gridHeight, true);
         grid = new PuzzlePiece[config.gridSize][config.gridSize];
 
+//        float imageAspect = (float) image.getWidth() / image.getHeight();
+//        float gridAspect = (float) gridWidth / gridHeight;
+//
+//        Bitmap scaledImage;
+//        if (Math.abs(imageAspect - gridAspect) < 0.01f) {
+//            // Aspect ratio gần giống nhau, scale trực tiếp
+//            scaledImage = Bitmap.createScaledBitmap(image, gridWidth, gridHeight, true);
+//        } else {
+//            // Aspect ratio khác nhau, cần crop hoặc fit
+//            int scaledWidth, scaledHeight;
+//            int offsetX = 0, offsetY = 0;
+//
+//            if (imageAspect > gridAspect) {
+//                // Image rộng hơn, scale theo height
+//                scaledHeight = gridHeight;
+//                scaledWidth = (int) (scaledHeight * imageAspect);
+//                offsetX = (scaledWidth - gridWidth) / 2;
+//            } else {
+//                // Image cao hơn, scale theo width
+//                scaledWidth = gridWidth;
+//                scaledHeight = (int) (scaledWidth / imageAspect);
+//                offsetY = (scaledHeight - gridHeight) / 2;
+//            }
+//
+//            Bitmap tempScaled = Bitmap.createScaledBitmap(image, scaledWidth, scaledHeight, true);
+//            scaledImage = Bitmap.createBitmap(tempScaled, offsetX, offsetY, gridWidth, gridHeight);
+//
+//            if (tempScaled != scaledImage) {
+//                tempScaled.recycle();
+//            }
+//        }
+//
+//        grid = new PuzzlePiece[config.gridSize][config.gridSize];
+//
+//        for (int row = 0; row < config.gridSize; row++) {
+//            for (int col = 0; col < config.gridSize; col++) {
+//                int x = col * cellWidth;
+//                int y = row * cellHeight;
+//
+//                int width = Math.min(cellWidth, scaledImage.getWidth() - x);
+//                int height = Math.min(cellHeight, scaledImage.getHeight() - y);
+//
+//                if (width <= 0 || height <= 0) continue;
+//
+//                try {
+//                    Bitmap pieceBitmap = Bitmap.createBitmap(scaledImage, x, y, width, height);
+//                    PuzzlePiece piece = new PuzzlePiece(pieceBitmap, row, col, cellWidth, cellHeight);
+//                    allPieces.add(piece);
+//                } catch (Exception e) {
+//                    Log.e(TAG, "Error creating piece [" + row + "," + col + "]", e);
+//                }
+//            }
+//        }
+        // ✅ FIX: Tạo pieces CHÍNH XÁC không lặp lại
         for (int row = 0; row < config.gridSize; row++) {
             for (int col = 0; col < config.gridSize; col++) {
+                // ✅ Tính toán chính xác pixel position
                 int x = col * cellWidth;
                 int y = row * cellHeight;
 
+                // ✅ Đảm bảo width/height không vượt quá image
                 int width = Math.min(cellWidth, scaledImage.getWidth() - x);
                 int height = Math.min(cellHeight, scaledImage.getHeight() - y);
 
-                if (width <= 0 || height <= 0) continue;
+                if (width <= 0 || height <= 0) {
+                    Log.e(TAG, "Invalid piece size at [" + row + "," + col + "]");
+                    continue;
+                }
 
                 try {
                     Bitmap pieceBitmap = Bitmap.createBitmap(scaledImage, x, y, width, height);
                     PuzzlePiece piece = new PuzzlePiece(pieceBitmap, row, col, cellWidth, cellHeight);
                     allPieces.add(piece);
+
+                    Log.d(TAG, "Created piece [" + row + "," + col + "] at (" + x + "," + y + ") size: " + width + "x" + height);
                 } catch (Exception e) {
                     Log.e(TAG, "Error creating piece [" + row + "," + col + "]", e);
                 }
             }
+        }
+
+        // ✅ VERIFY: Check số lượng pieces
+        int expectedPieces = config.gridSize * config.gridSize;
+        if (allPieces.size() != expectedPieces) {
+            Log.e(TAG, "⚠️ WARNING: Expected " + expectedPieces + " pieces, got " + allPieces.size());
+        } else {
+            Log.d(TAG, "✅ Created " + allPieces.size() + " pieces correctly");
         }
 
         shufflePieces();
@@ -419,7 +455,7 @@ public class PuzzleView extends View {
 
     private void drawCompletionImage(Canvas canvas) {
         // Draw semi-transparent dark background
-        canvas.drawColor(0xE0000000);
+//        canvas.drawColor(0xE0000000);
 
         // Calculate scaled image dimensions maintaining aspect ratio
         int padding = 80;
@@ -448,13 +484,6 @@ public class PuzzleView extends View {
         // Draw the full image (crystal clear, no dimming)
         canvas.drawBitmap(fullImage, null, destRect, paint);
 
-        // Draw border around image
-        Paint completionBorderPaint = new Paint();
-        completionBorderPaint.setStyle(Paint.Style.STROKE);
-        completionBorderPaint.setStrokeWidth(6);
-        completionBorderPaint.setColor(0xFFFFD700); // Gold
-        canvas.drawRect(destRect, completionBorderPaint);
-
         // Draw "Puzzle Completed!" text
         Paint completionTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         completionTextPaint.setColor(0xFFFFD700);
@@ -462,7 +491,6 @@ public class PuzzleView extends View {
         completionTextPaint.setTextAlign(Paint.Align.CENTER);
         completionTextPaint.setFakeBoldText(true);
 
-//        canvas.drawText("Puzzle Completed!", getWidth() / 2f, top - 30, completionTextPaint);
     }
 
     private void drawSwapModeIndicator(Canvas canvas) {
@@ -1002,6 +1030,198 @@ public class PuzzleView extends View {
             isAnimating = false;
             return false;
         }
+    }
+
+    public boolean solveCorners() {
+        if (isAnimating || showingCompletion) {
+            return false;
+        }
+
+        try {
+            // Find all 4 corners: top-left, top-right, bottom-left, bottom-right
+            int[][] corners = {
+                    {0, 0},                           // Top-left
+                    {0, config.gridSize - 1},         // Top-right
+                    {config.gridSize - 1, 0},         // Bottom-left
+                    {config.gridSize - 1, config.gridSize - 1}  // Bottom-right
+            };
+
+            List<int[]> cornersToSolve = new ArrayList<>();
+
+            // Check which corners need solving
+            for (int[] corner : corners) {
+                int row = corner[0];
+                int col = corner[1];
+
+                PuzzlePiece piece = grid[row][col];
+
+                if (piece != null && !piece.isLocked()) {
+                    int correctRow = piece.getCorrectRow();
+                    int correctCol = piece.getCorrectCol();
+
+                    // If not in correct position
+                    if (correctRow != row || correctCol != col) {
+                        cornersToSolve.add(new int[]{row, col, correctRow, correctCol});
+                    }
+                }
+            }
+
+            if (cornersToSolve.isEmpty()) {
+                return false; // All corners already solved
+            }
+
+            // Animate solving corners
+            animateSolveCorners(cornersToSolve);
+            return true;
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in solveCorners", e);
+            isAnimating = false;
+            return false;
+        }
+    }
+
+    /**
+     * ✅ NEW: Solve all edge pieces (excluding corners)
+     */
+    public boolean solveEdges() {
+        if (isAnimating || showingCompletion) {
+            return false;
+        }
+
+        try {
+            List<int[]> edgesToSolve = new ArrayList<>();
+
+            // Top edge (excluding corners)
+            for (int col = 1; col < config.gridSize - 1; col++) {
+                checkAndAddEdge(0, col, edgesToSolve);
+            }
+
+            // Bottom edge (excluding corners)
+            for (int col = 1; col < config.gridSize - 1; col++) {
+                checkAndAddEdge(config.gridSize - 1, col, edgesToSolve);
+            }
+
+            // Left edge (excluding corners)
+            for (int row = 1; row < config.gridSize - 1; row++) {
+                checkAndAddEdge(row, 0, edgesToSolve);
+            }
+
+            // Right edge (excluding corners)
+            for (int row = 1; row < config.gridSize - 1; row++) {
+                checkAndAddEdge(row, config.gridSize - 1, edgesToSolve);
+            }
+
+            if (edgesToSolve.isEmpty()) {
+                return false; // All edges already solved
+            }
+
+            // Animate solving edges
+            animateSolveEdges(edgesToSolve);
+            return true;
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error in solveEdges", e);
+            isAnimating = false;
+            return false;
+        }
+    }
+
+    private void checkAndAddEdge(int row, int col, List<int[]> edgesToSolve) {
+        PuzzlePiece piece = grid[row][col];
+
+        if (piece != null && !piece.isLocked()) {
+            int correctRow = piece.getCorrectRow();
+            int correctCol = piece.getCorrectCol();
+
+            if (correctRow != row || correctCol != col) {
+                edgesToSolve.add(new int[]{row, col, correctRow, correctCol});
+            }
+        }
+    }
+
+    /**
+     * ✅ NEW: Animate solving corners
+     */
+    private void animateSolveCorners(List<int[]> cornersToSolve) {
+        isAnimating = true;
+        clearSelection();
+
+        // Solve all corners in sequence
+        final int[] currentIndex = {0};
+
+        Handler handler = new Handler();
+        Runnable solveNext = new Runnable() {
+            @Override
+            public void run() {
+                if (currentIndex[0] >= cornersToSolve.size()) {
+                    // All corners solved
+                    isAnimating = false;
+                    checkLocking();
+
+                    if (listener != null) {
+                        listener.onPieceConnected();
+                    }
+
+                    if (isPuzzleComplete()) {
+                        showCompletionImage();
+                    } else if (listener != null) {
+                        listener.onProgressChanged();
+                    }
+                    return;
+                }
+
+                int[] corner = cornersToSolve.get(currentIndex[0]);
+                animateSwap(corner[0], corner[1], corner[2], corner[3]);
+
+                currentIndex[0]++;
+                handler.postDelayed(this, 400); // 400ms between each corner
+            }
+        };
+
+        solveNext.run();
+    }
+
+    /**
+     * ✅ NEW: Animate solving edges
+     */
+    private void animateSolveEdges(List<int[]> edgesToSolve) {
+        isAnimating = true;
+        clearSelection();
+
+        // Solve all edges in sequence
+        final int[] currentIndex = {0};
+
+        Handler handler = new Handler();
+        Runnable solveNext = new Runnable() {
+            @Override
+            public void run() {
+                if (currentIndex[0] >= edgesToSolve.size()) {
+                    // All edges solved
+                    isAnimating = false;
+                    checkLocking();
+
+                    if (listener != null) {
+                        listener.onPieceConnected();
+                    }
+
+                    if (isPuzzleComplete()) {
+                        showCompletionImage();
+                    } else if (listener != null) {
+                        listener.onProgressChanged();
+                    }
+                    return;
+                }
+
+                int[] edge = edgesToSolve.get(currentIndex[0]);
+                animateSwap(edge[0], edge[1], edge[2], edge[3]);
+
+                currentIndex[0]++;
+                handler.postDelayed(this, 200); // 200ms between each edge piece
+            }
+        };
+
+        solveNext.run();
     }
 
     private void animateSwap(int fromRow, int fromCol, int toRow, int toCol) {

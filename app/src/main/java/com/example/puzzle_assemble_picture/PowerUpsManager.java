@@ -26,11 +26,17 @@ public class PowerUpsManager {
     // Keys
     private static final String KEY_AUTO_SOLVE_COUNT = "autoSolveCount";
     private static final String KEY_SHUFFLE_COUNT = "shuffleCount";
+    private static final String KEY_SOLVE_CORNERS_COUNT = "solveCornersCount";
+    private static final String KEY_SOLVE_EDGES_COUNT = "solveEdgesCount";
+    private static final String KEY_REVEAL_PREVIEW_COUNT = "revealPreviewCount";
     private static final String KEY_LAST_RESET_DATE = "lastResetDate";
 
     // Initial free uses per day
     private static final int DAILY_AUTO_SOLVE = 3;
     private static final int DAILY_SHUFFLE = 5;
+    private static final int DAILY_SOLVE_CORNERS = 2;
+    private static final int DAILY_SOLVE_EDGES = 1;
+    private static final int DAILY_REVEAL_PREVIEW = 2;
 
     // Rewarded ad unit IDs (Test IDs)
     private static final String TEST_REWARDED_AD_ID = "ca-app-pub-3940256099942544/5224354917";
@@ -44,7 +50,10 @@ public class PowerUpsManager {
 
     public enum PowerUpType {
         AUTO_SOLVE,
-        SHUFFLE
+        SHUFFLE,
+        SOLVE_CORNERS,
+        SOLVE_EDGES,
+        REVEAL_PREVIEW
     }
 
     public interface PowerUpCallback {
@@ -89,10 +98,13 @@ public class PowerUpsManager {
             prefs.edit()
                     .putInt(KEY_AUTO_SOLVE_COUNT, DAILY_AUTO_SOLVE)
                     .putInt(KEY_SHUFFLE_COUNT, DAILY_SHUFFLE)
+                    .putInt(KEY_SOLVE_CORNERS_COUNT, DAILY_SOLVE_CORNERS)
+                    .putInt(KEY_SOLVE_EDGES_COUNT, DAILY_SOLVE_EDGES)
+                    .putInt(KEY_REVEAL_PREVIEW_COUNT, DAILY_REVEAL_PREVIEW)
                     .putString(KEY_LAST_RESET_DATE, today)
                     .apply();
 
-            Log.d(TAG, "✓ Reset complete: Auto-Solve=" + DAILY_AUTO_SOLVE + ", Shuffle=" + DAILY_SHUFFLE);
+            Log.d(TAG, "✓ Reset complete");
         }
     }
 
@@ -186,8 +198,56 @@ public class PowerUpsManager {
         }
     }
 
+    private int getCostForType(PowerUpType type) {
+        switch (type) {
+            case AUTO_SOLVE:
+                return GameConfig.COST_AUTO_SOLVE;
+            case SHUFFLE:
+                return GameConfig.COST_SHUFFLE;
+            case SOLVE_CORNERS:
+                return 40; // Match ShopConfig
+            case SOLVE_EDGES:
+                return 60; // Match ShopConfig
+            default:
+                return 50;
+        }
+    }
+
+    /**
+     * ✅ NEW: Get name for power-up type
+     */
+    private String getNameForType(PowerUpType type) {
+        switch (type) {
+            case AUTO_SOLVE:
+                return "Auto-Solve";
+            case SHUFFLE:
+                return "Shuffle";
+            case SOLVE_CORNERS:
+                return "Solve Corners";
+            case SOLVE_EDGES:
+                return "Solve Edges";
+            case REVEAL_PREVIEW:
+                return  "Reveal Preview 10 seconds";
+            default:
+                return "Power-Up";
+        }
+    }
+
     private String getKeyForType(PowerUpType type) {
-        return (type == PowerUpType.AUTO_SOLVE) ? KEY_AUTO_SOLVE_COUNT : KEY_SHUFFLE_COUNT;
+        switch (type) {
+            case AUTO_SOLVE:
+                return KEY_AUTO_SOLVE_COUNT;
+            case SHUFFLE:
+                return KEY_SHUFFLE_COUNT;
+            case SOLVE_CORNERS:
+                return KEY_SOLVE_CORNERS_COUNT;
+            case SOLVE_EDGES:
+                return KEY_SOLVE_EDGES_COUNT;
+            case REVEAL_PREVIEW:
+                return KEY_REVEAL_PREVIEW_COUNT;
+            default:
+                return "";
+        }
     }
 
     /**
