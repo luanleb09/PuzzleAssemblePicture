@@ -128,14 +128,29 @@ public class ShopActivity extends AppCompatActivity {
                     }
                     break;
 
-                // Future power-ups
-                case "hint":
-                case "unlock_corners":
-                case "unlock_edges":
+                case "solve_corners":
+                    success = coinManager.spendCoins(powerUp.coinPrice);
+                    if (success) {
+                        powerUpsManager.addUses(PowerUpsManager.PowerUpType.SOLVE_CORNERS, 3);
+                        Toast.makeText(this, "📐 Purchased! +3 Corner Solvers", Toast.LENGTH_SHORT).show();
+                    }
+                    break;
+
+                case "solve_edges":
+                    success = coinManager.spendCoins(powerUp.coinPrice);
+                    if (success) {
+                        powerUpsManager.addUses(PowerUpsManager.PowerUpType.SOLVE_EDGES, 2);
+                        Toast.makeText(this, "🔲 Purchased! +2 Edge Solvers", Toast.LENGTH_SHORT).show();
+                    }
+                    break;
+
+                // ✅ NEW: Reveal Preview
                 case "reveal_preview":
-                case "time_freeze":
-                case "double_coins":
-                    Toast.makeText(this, "🔜 Coming soon in next update!", Toast.LENGTH_SHORT).show();
+                    success = coinManager.spendCoins(powerUp.coinPrice);
+                    if (success) {
+                        powerUpsManager.addUses(PowerUpsManager.PowerUpType.REVEAL_PREVIEW, 3);
+                        Toast.makeText(this, "👁️ Purchased! +3 Preview Reveals (Insane mode only)", Toast.LENGTH_LONG).show();
+                    }
                     break;
 
                 default:

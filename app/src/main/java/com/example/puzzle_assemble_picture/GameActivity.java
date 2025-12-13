@@ -71,6 +71,10 @@ public class GameActivity extends AppCompatActivity {
 
     private Handler handler = new Handler(Looper.getMainLooper());
 
+    private boolean isRevealingPreview = false;
+    private Handler revealHandler = new Handler(Looper.getMainLooper());
+    private Runnable hidePreviewRunnable;
+
     private InterstitialAdManager interstitialAdManager;
     private boolean isShowingAd = false;
     private boolean isLevelCompleted = false;
@@ -186,6 +190,126 @@ public class GameActivity extends AppCompatActivity {
         updatePowerUpButtons();
 
         dailyRewardManager = new DailyRewardManager(this);
+    }
+
+    private void useRevealPreview() {
+        // ✅ CHECK: Only available in Insane mode
+        if (!GameMode.MODE_INSANE.equals(gameMode)) {
+            Toast.makeText(this, "👁️ Reveal Preview is only available in Insane mode!", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        if (isShowingAd || isRevealingPreview) {
+            Toast.makeText(this, "Please wait...", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.REVEAL_PREVIEW, new PowerUpsManager.PowerUpCallback() {
+            @Override
+            public void onSuccess() {
+                isShowingAd = true;
+
+                handler.postDelayed(() -> {
+                    isShowingAd = false;
+                    showRevealPreview();
+                }, 500);
+            }
+
+            @Override
+            public void onFailed(String reason) {
+                isShowingAd = false;
+                Toast.makeText(GameActivity.this, reason, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    /**
+     * ✅ NEW: Show reveal preview for 10 seconds
+     */
+    private void showRevealPreview() {
+        if (currentPuzzleBitmap == null) {
+            Toast.makeText(this, "Image not available", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        isRevealingPreview = true;
+
+        // Show fullscreen image
+        fullscreenImageView.setImageBitmap(currentPuzzleBitmap);
+        fullscreenOverlay.setVisibility(View.VISIBLE);
+
+        // Add countdown timer
+        final TextView countdownText = new TextView(this);
+        countdownText.setTextSize(48);
+        countdownText.setTextColor(Color.WHITE);
+        countdownText.setTypeface(null, android.graphics.Typeface.BOLD);
+        countdownText.setShadowLayer(4, 2, 2, Color.BLACK);
+
+        android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL
+        );
+        params.setMargins(0, 100, 0, 0);
+        countdownText.setLayoutParams(params);
+
+        ((ViewGroup) fullscreenOverlay).addView(countdownText);
+
+        // Fade in animation
+        fullscreenOverlay.setAlpha(0f);
+        fullscreenOverlay.animate()
+                .alpha(1f)
+                .setDuration(300)
+                .start();
+
+        // ✅ COUNTDOWN: 10 seconds
+        final int[] timeLeft = {10};
+
+        Runnable countdownRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (timeLeft[0] > 0) {
+                    countdownText.setText("👁️ " + timeLeft[0] + "s");
+                    timeLeft[0]--;
+                    revealHandler.postDelayed(this, 1000);
+                } else {
+                    hideRevealPreview(countdownText);
+                }
+            }
+        };
+
+        revealHandler.post(countdownRunnable);
+
+        // Click to dismiss early
+        fullscreenOverlay.setOnClickListener(v -> {
+            revealHandler.removeCallbacksAndMessages(null);
+            hideRevealPreview(countdownText);
+        });
+
+        Toast.makeText(this, "👁️ Preview revealed for 10 seconds!", Toast.LENGTH_SHORT).show();
+        updatePowerUpButtons();
+        updateCoinDisplay();
+    }
+
+    /**
+     * ✅ NEW: Hide reveal preview
+     */
+    private void hideRevealPreview(TextView countdownText) {
+        fullscreenOverlay.animate()
+                .alpha(0f)
+                .setDuration(300)
+                .withEndAction(() -> {
+                    fullscreenOverlay.setVisibility(View.GONE);
+                    fullscreenOverlay.setAlpha(1f);
+
+                    // Remove countdown text
+                    if (countdownText != null && countdownText.getParent() != null) {
+                        ((ViewGroup) countdownText.getParent()).removeView(countdownText);
+                    }
+
+                    isRevealingPreview = false;
+                })
+                .start();
     }
 
     private void showLoadGameDialog() {
@@ -1048,31 +1172,238 @@ public class GameActivity extends AppCompatActivity {
         });
     }
 
+    private void useRevealPreview() {
+        if (currentDifficulty != DifficultyLevel.INSANE) {
+            Toast.makeText(this, "Reveal Preview is only available in INSANE mode",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.REVEAL_PREVIEW)) {
+            // Lấy 3 ô trống ngẫu nhiên
+            List<int[]> emptyCells = new ArrayList<>();
+            for (int row = 0; row < 9; row++) {
+                for (int col = 0; col < 9; col++) {
+                    if (board[row][col] == 0) {
+                        emptyCells.add(new int[]{row, col});
+                    }
+                }
+            }
+
+            if (emptyCells.isEmpty()) {
+                Toast.makeText(this, "No empty cells to preview!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Chọn tối đa 3 ô
+            Collections.shuffle(emptyCells);
+            int previewCount = Math.min(3, emptyCells.size());
+            List<int[]> previewCells = emptyCells.subList(0, previewCount);
+
+            // Hiện preview
+            showPreviewCells(previewCells);
+
+            Toast.makeText(this, "👁️ Previewing " + previewCount + " cells for 5 seconds",
+                    Toast.LENGTH_SHORT).show();
+
+            // Ẩn sau 5 giây
+            new android.os.Handler(Looper.getMainLooper()).postDelayed(() -> {
+                hidePreviewCells();
+                Toast.makeText(this, "Preview ended", Toast.LENGTH_SHORT).show();
+            }, 5000);
+        }
+    }
+
     private void updatePowerUpButtons() {
         int autoSolveRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.AUTO_SOLVE);
         int shuffleRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.SHUFFLE);
+        int cornersRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.SOLVE_CORNERS);
+        int edgesRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.SOLVE_EDGES);
+        int revealRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.REVEAL_PREVIEW);
 
+        // Auto-Solve - chỉ hiện icon
+        autoSolveButton.setText("🎯");
+        autoSolveButton.setEnabled(true);
+        autoSolveButton.setAlpha(autoSolveRemaining > 0 ? 1.0f : 0.8f);
 
-        if (autoSolveRemaining > 0) {
-            autoSolveButton.setText("🎯 Auto-Solve (" + autoSolveRemaining + ")");
-            autoSolveButton.setEnabled(true);
-            autoSolveButton.setAlpha(1.0f);
-        } else {
-            autoSolveButton.setText("🎯 Auto-Solve (📺 Watch Ad)");
-            autoSolveButton.setEnabled(true);
-            autoSolveButton.setAlpha(0.8f);
-        }
+        // Shuffle - chỉ hiện icon
+        shuffleButton.setText("🔀");
+        shuffleButton.setEnabled(true);
+        shuffleButton.setAlpha(shuffleRemaining > 0 ? 1.0f : 0.8f);
 
-        if (shuffleRemaining > 0) {
-            shuffleButton.setText("🔀 Shuffle (" + shuffleRemaining + ")");
-            shuffleButton.setEnabled(true);
-            shuffleButton.setAlpha(1.0f);
-        } else {
-            shuffleButton.setText("🔀 Shuffle (📺 Watch Ad)");
-            shuffleButton.setEnabled(true);
-            shuffleButton.setAlpha(0.8f);
-        }
+        // Solve Corners - chỉ hiện icon
+        solveCornersButton.setText("📐");
+        solveCornersButton.setEnabled(true);
+        solveCornersButton.setAlpha(cornersRemaining > 0 ? 1.0f : 0.8f);
+
+        // Solve Edges - chỉ hiện icon
+        solveEdgesButton.setText("🔲");
+        solveEdgesButton.setEnabled(true);
+        solveEdgesButton.setAlpha(edgesRemaining > 0 ? 1.0f : 0.8f);
+
+        // Reveal Preview - chỉ hiện icon, chỉ enabled ở INSANE mode
+        revealPreviewButton.setText("👁️");
+        boolean isInsaneMode = currentDifficulty == DifficultyLevel.INSANE;
+        revealPreviewButton.setEnabled(isInsaneMode);
+        revealPreviewButton.setAlpha(isInsaneMode ? (revealRemaining > 0 ? 1.0f : 0.8f) : 0.4f);
     }
+
+    private void setupPowerUpButtons() {
+        // Auto-Solve button
+        autoSolveButton.setOnClickListener(v -> {
+            showPowerUpTooltipAndConfirm(v,
+                    "Auto-Solve",
+                    "🎯 Automatically solve one random empty cell",
+                    PowerUpsManager.PowerUpType.AUTO_SOLVE);
+        });
+
+        // Shuffle button
+        shuffleButton.setOnClickListener(v -> {
+            showPowerUpTooltipAndConfirm(v,
+                    "Shuffle",
+                    "🔀 Shuffle all incorrect numbers to new positions",
+                    PowerUpsManager.PowerUpType.SHUFFLE);
+        });
+
+        // Solve Corners button
+        solveCornersButton.setOnClickListener(v -> {
+            showPowerUpTooltipAndConfirm(v,
+                    "Solve Corners",
+                    "📐 Automatically solve all 4 corner cells",
+                    PowerUpsManager.PowerUpType.SOLVE_CORNERS);
+        });
+
+        // Solve Edges button
+        solveEdgesButton.setOnClickListener(v -> {
+            showPowerUpTooltipAndConfirm(v,
+                    "Solve Edges",
+                    "🔲 Automatically solve all edge cells",
+                    PowerUpsManager.PowerUpType.SOLVE_EDGES);
+        });
+
+        // Reveal Preview button
+        revealPreviewButton.setOnClickListener(v -> {
+            if (!revealPreviewButton.isEnabled()) {
+                Toast.makeText(this,
+                        "👁️ Reveal Preview is only available in INSANE mode",
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+            showPowerUpTooltipAndConfirm(v,
+                    "Reveal Preview",
+                    "👁️ Preview 3 correct cells for 5 seconds (INSANE mode only)",
+                    PowerUpsManager.PowerUpType.REVEAL_PREVIEW);
+        });
+    }
+
+    private void showPowerUpTooltipAndConfirm(View anchorView, String title,
+                                              String description,
+                                              PowerUpsManager.PowerUpType powerUpType) {
+        int remaining = powerUpsManager.getRemainingUses(powerUpType);
+
+        // Hiện tooltip trước
+        String tooltipMessage = description + "\n\n";
+        if (remaining > 0) {
+            tooltipMessage += "✅ Remaining: " + remaining + " use" + (remaining > 1 ? "s" : "");
+        } else {
+            tooltipMessage += "📺 Watch an ad to get 3 more uses";
+        }
+
+        Toast.makeText(this, tooltipMessage, Toast.LENGTH_LONG).show();
+
+        // Sau đó hiện confirm dialog
+        new android.os.Handler(Looper.getMainLooper()).postDelayed(() -> {
+            showConfirmationDialog(title, description, remaining, powerUpType);
+        }, 600);
+    }
+
+    private void showConfirmationDialog(String title, String description,
+                                        int remaining,
+                                        PowerUpsManager.PowerUpType powerUpType) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+
+        // Title với icon
+        String iconTitle = "";
+        switch (powerUpType) {
+            case AUTO_SOLVE:
+                iconTitle = "🎯 " + title;
+                break;
+            case SHUFFLE:
+                iconTitle = "🔀 " + title;
+                break;
+            case SOLVE_CORNERS:
+                iconTitle = "📐 " + title;
+                break;
+            case SOLVE_EDGES:
+                iconTitle = "🔲 " + title;
+                break;
+            case REVEAL_PREVIEW:
+                iconTitle = "👁️ " + title;
+                break;
+        }
+        builder.setTitle(iconTitle);
+
+        // Message
+        String message = description + "\n\n";
+        if (remaining > 0) {
+            message += "You have " + remaining + " use" + (remaining > 1 ? "s" : "") + " remaining.\n\n";
+            message += "Do you want to use this power-up now?";
+        } else {
+            message += "You have no uses left.\n\n";
+            message += "Watch an ad to get 3 more uses?";
+        }
+        builder.setMessage(message);
+
+        // Buttons
+        builder.setPositiveButton("Yes", (dialog, which) -> {
+            if (remaining > 0) {
+                // Sử dụng power-up
+                usePowerUp(powerUpType);
+            } else {
+                // Xem ad để nhận power-up
+                showAdForPowerUp(powerUpType);
+            }
+        });
+
+        builder.setNegativeButton("No", (dialog, which) -> {
+            dialog.dismiss();
+        });
+
+        // Styling
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        // Optional: Customize button colors
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(
+                getResources().getColor(android.R.color.holo_green_dark));
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(
+                getResources().getColor(android.R.color.holo_red_dark));
+    }
+
+    private void usePowerUp(PowerUpsManager.PowerUpType powerUpType) {
+        switch (powerUpType) {
+            case AUTO_SOLVE:
+                useAutoSolve();
+                break;
+            case SHUFFLE:
+                useShuffle();
+                break;
+            case SOLVE_CORNERS:
+                useSolveCorners();
+                break;
+            case SOLVE_EDGES:
+                useSolveEdges();
+                break;
+            case REVEAL_PREVIEW:
+                useRevealPreview();
+                break;
+        }
+
+        // Update UI và save
+        updatePowerUpButtons();
+        powerUpsManager.savePowerUps(this);
+    }
+
 
     private void updateStats() {
         int totalPieces = gridSize * gridSize;

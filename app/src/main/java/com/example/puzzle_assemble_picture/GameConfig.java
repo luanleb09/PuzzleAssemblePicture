@@ -13,6 +13,9 @@ public class GameConfig {
     // Power-up costs
     public static final int COST_AUTO_SOLVE = 50;
     public static final int COST_SHUFFLE = 30;
+    public static final int COST_SOLVE_CORNERS = 200;
+    public static final int COST_SOLVE_EDGES = 500;
+    public static final int COST_REVEAL_PREVIEW = 100;
 
     public static final int PRICE_AUTO_SOLVE = 50;
     public static final int PRICE_SHUFFLE = 30;

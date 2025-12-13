@@ -281,33 +281,79 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:padding="2dp"
+            android:padding="8dp"
             android:gravity="center"
-            android:weightSum="2"
+            android:weightSum="5"
             app:layout_constraintBottom_toTopOf="@id/buttonBar">
 
+        <!-- Auto-Solve Button - Chỉ hiện icon 🎯 -->
         <Button
                 android:id="@+id/autoSolveButton"
                 android:layout_width="0dp"
-                android:layout_height="56dp"
+                android:layout_height="64dp"
                 android:layout_weight="1"
-                android:text="🎯 Auto-Solve (3)"
-                android:textSize="13sp"
+                android:text="🎯"
+                android:textSize="28sp"
                 android:textStyle="bold"
-                android:layout_marginTop="2dp"
+                android:contentDescription="Auto-Solve: Automatically solve one random cell"
                 style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_marginEnd="2dp"/>
+                android:layout_marginEnd="4dp"/>
+
+        <!-- Shuffle Button - Chỉ hiện icon 🔀 -->
         <Button
                 android:id="@+id/shuffleButton"
                 android:layout_width="0dp"
-                android:layout_height="56dp"
+                android:layout_height="64dp"
                 android:layout_weight="1"
-                android:text="🔀 Shuffle (3)"
-                android:textSize="13sp"
+                android:text="🔀"
+                android:textSize="28sp"
                 android:textStyle="bold"
-                android:layout_marginTop="2dp"
+                android:contentDescription="Shuffle: Shuffle incorrect numbers"
                 style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_marginStart="2dp" />
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"/>
+
+        <!-- Solve Corners Button - Chỉ hiện icon 📐 -->
+        <Button
+                android:id="@+id/solveCornersButton"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:text="📐"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:contentDescription="Solve Corners: Automatically solve all 4 corner cells"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"/>
+
+        <!-- Solve Edges Button - Chỉ hiện icon 🔲 -->
+        <Button
+                android:id="@+id/solveEdgesButton"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:text="🔲"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:contentDescription="Solve Edges: Automatically solve all edge cells"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"/>
+
+        <!-- Reveal Preview Button - Chỉ hiện icon 👁️, enabled chỉ ở INSANE mode -->
+        <Button
+                android:id="@+id/revealPreviewButton"
+                android:layout_width="0dp"
+                android:layout_height="64dp"
+                android:layout_weight="1"
+                android:text="👁️"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                android:contentDescription="Reveal Preview: Preview 3 cells for 5 seconds (INSANE mode only)"
+                android:visibility="visible"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_marginStart="4dp"/>
 
     </LinearLayout>
 

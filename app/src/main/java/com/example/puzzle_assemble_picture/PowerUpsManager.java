@@ -101,6 +101,7 @@ public class PowerUpsManager {
                     .putInt(KEY_SOLVE_CORNERS_COUNT, DAILY_SOLVE_CORNERS)
                     .putInt(KEY_SOLVE_EDGES_COUNT, DAILY_SOLVE_EDGES)
                     .putInt(KEY_REVEAL_PREVIEW_COUNT, DAILY_REVEAL_PREVIEW)
+
                     .putString(KEY_LAST_RESET_DATE, today)
                     .apply();
 
@@ -142,7 +143,7 @@ public class PowerUpsManager {
         ensureAdLoaded();
 
         CoinManager coinManager = new CoinManager(context);
-        int cost = (type == PowerUpType.AUTO_SOLVE) ? GameConfig.COST_AUTO_SOLVE : GameConfig.COST_SHUFFLE;
+        int cost = (type == PowerUpType.AUTO_SOLVE) ? GameConfig.COST_AUTO_SOLVE : GameConfig.COST_SHUFFLE : GameConfig.COST_SOLVE_CORNERS : GameConfig.COST_SOLVE_EDGES : GameConfig.COST_REVEAL_PREVIEW;
         String powerUpName = (type == PowerUpType.AUTO_SOLVE) ? "Auto-Solve" : "Shuffle";
         int currentCoins = coinManager.getCoins();
 
@@ -205,9 +206,11 @@ public class PowerUpsManager {
             case SHUFFLE:
                 return GameConfig.COST_SHUFFLE;
             case SOLVE_CORNERS:
-                return 40; // Match ShopConfig
+                return GameConfig.COST_SOLVE_CORNERS;
             case SOLVE_EDGES:
-                return 60; // Match ShopConfig
+                return GameConfig.COST_SOLVE_EDGES;
+            case REVEAL_PREVIEW:
+                return GameConfig.COST_REVEAL_PREVIEW;
             default:
                 return 50;
         }
