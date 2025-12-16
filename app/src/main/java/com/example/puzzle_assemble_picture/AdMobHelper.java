@@ -19,7 +19,7 @@ public class AdMobHelper {
     private static boolean isInitialized = false;
 
     // Test Banner Ad Unit ID - Thay bằng ID thật khi publish
-    public static final String BANNER_AD_UNIT_ID = "ca-app-pub-3940256099942544/6300978111";
+    public static final String BANNER_AD_UNIT_ID = GameConfig.BANNER_AD_UNIT_ID;
 
     /**
      * Khởi tạo AdMob SDK (chỉ cần gọi 1 lần)

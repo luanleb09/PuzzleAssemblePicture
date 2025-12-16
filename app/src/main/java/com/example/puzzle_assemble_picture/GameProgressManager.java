@@ -22,9 +22,9 @@ public class GameProgressManager {
 
     // Game constants
     public static final int MAX_LEVEL = 300;
-    public static final int UNLOCK_NORMAL_AT = 10;
-    public static final int UNLOCK_HARD_AT = 10;
-    public static final int UNLOCK_INSANE_AT = 10;
+    public static final int UNLOCK_NORMAL_AT = 1;
+    public static final int UNLOCK_HARD_AT = 1;
+    public static final int UNLOCK_INSANE_AT = 1;
 
     private SharedPreferences prefs;
     private Gson gson;
@@ -64,9 +64,15 @@ public class GameProgressManager {
         SharedPreferences.Editor editor = prefs.edit();
 
         // Mark level as completed
-        editor.putBoolean(KEY_COMPLETED_LEVELS + mode + "_" + currentLevel, true);
+        String key = KEY_COMPLETED_LEVELS + mode + "_" + currentLevel;
+        editor.putBoolean(key, true);
 
-        // ✅ Auto unlock next level
+        Log.d(TAG, "========== MARKING LEVEL COMPLETED ==========");
+        Log.d(TAG, "Mode: " + mode);
+        Log.d(TAG, "Level: " + currentLevel);
+        Log.d(TAG, "Key: " + key);
+
+        // Auto unlock next level
         int nextLevel = currentLevel + 1;
         if (nextLevel <= MAX_LEVEL) {
             int savedLevel = getCurrentLevel(mode);
@@ -76,8 +82,31 @@ public class GameProgressManager {
             }
         }
 
-        editor.apply();
-        Log.d(TAG, "✅ Level " + currentLevel + " completed in " + mode + " mode");
+        // ✅ IMPORTANT: Apply immediately with commit() instead of apply()
+        editor.commit(); // Use commit() to ensure data is written immediately
+
+        Log.d(TAG, "✅ Data committed to SharedPreferences");
+
+        // Debug: Check if this unlocks a new mode
+        if (mode.equals(GameMode.MODE_EASY)) {
+            Log.d(TAG, "Easy mode level " + currentLevel + " completed");
+            Log.d(TAG, "UNLOCK_NORMAL_AT = " + UNLOCK_NORMAL_AT);
+            Log.d(TAG, "Should unlock Normal? " + (currentLevel >= UNLOCK_NORMAL_AT));
+            Log.d(TAG, "Normal mode actually unlocked: " + isModeUnlocked(GameMode.MODE_NORMAL));
+
+            // Verify the data was written
+            boolean verified = prefs.getBoolean(key, false);
+            Log.d(TAG, "Verification read: " + verified);
+
+        } else if (mode.equals(GameMode.MODE_NORMAL) && currentLevel >= UNLOCK_HARD_AT) {
+            Log.d(TAG, "🎉 Should unlock Hard mode!");
+            Log.d(TAG, "Hard mode unlocked: " + isModeUnlocked(GameMode.MODE_HARD));
+        } else if (mode.equals(GameMode.MODE_HARD) && currentLevel >= UNLOCK_INSANE_AT) {
+            Log.d(TAG, "🎉 Should unlock Insane mode!");
+            Log.d(TAG, "Insane mode unlocked: " + isModeUnlocked(GameMode.MODE_INSANE));
+        }
+
+        Log.d(TAG, "============================================");
     }
 
     /**

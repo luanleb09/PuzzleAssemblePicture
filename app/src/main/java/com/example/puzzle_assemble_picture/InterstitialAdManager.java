@@ -23,7 +23,7 @@ public class InterstitialAdManager {
     private static final String TAG = "InterstitialAdManager";
 
     // ✅ TEST AD ID - Thay bằng real ID khi release
-    private static final String TEST_AD_UNIT_ID = "ca-app-pub-3940256099942544/1033173712";
+    private static final String INTERSTITIAL_AD_ID = GameConfig.INTERSTITIAL_AD_ID;
 
     // SharedPreferences
     private static final String PREFS_NAME = "InterstitialAdPrefs";
@@ -65,7 +65,7 @@ public class InterstitialAdManager {
 
             // ✅ Post back to main thread
             new Handler(Looper.getMainLooper()).post(() -> {
-                InterstitialAd.load(context, TEST_AD_UNIT_ID, adRequest,
+                InterstitialAd.load(context, INTERSTITIAL_AD_ID, adRequest,
                         new InterstitialAdLoadCallback() {
                             @Override
                             public void onAdLoaded(@NonNull InterstitialAd ad) {

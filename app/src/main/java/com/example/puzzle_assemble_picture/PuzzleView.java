@@ -12,6 +12,7 @@ import android.graphics.PointF;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.RectF;
+import android.os.Looper;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -20,12 +21,14 @@ import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.OvershootInterpolator;
 import android.widget.Scroller;
 import android.view.VelocityTracker;
-
+import android.os.Handler;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 
 import android.os.Vibrator;
 import android.os.VibrationEffect;
@@ -223,59 +226,6 @@ public class PuzzleView extends View {
         Bitmap scaledImage = Bitmap.createScaledBitmap(image, gridWidth, gridHeight, true);
         grid = new PuzzlePiece[config.gridSize][config.gridSize];
 
-//        float imageAspect = (float) image.getWidth() / image.getHeight();
-//        float gridAspect = (float) gridWidth / gridHeight;
-//
-//        Bitmap scaledImage;
-//        if (Math.abs(imageAspect - gridAspect) < 0.01f) {
-//            // Aspect ratio gần giống nhau, scale trực tiếp
-//            scaledImage = Bitmap.createScaledBitmap(image, gridWidth, gridHeight, true);
-//        } else {
-//            // Aspect ratio khác nhau, cần crop hoặc fit
-//            int scaledWidth, scaledHeight;
-//            int offsetX = 0, offsetY = 0;
-//
-//            if (imageAspect > gridAspect) {
-//                // Image rộng hơn, scale theo height
-//                scaledHeight = gridHeight;
-//                scaledWidth = (int) (scaledHeight * imageAspect);
-//                offsetX = (scaledWidth - gridWidth) / 2;
-//            } else {
-//                // Image cao hơn, scale theo width
-//                scaledWidth = gridWidth;
-//                scaledHeight = (int) (scaledWidth / imageAspect);
-//                offsetY = (scaledHeight - gridHeight) / 2;
-//            }
-//
-//            Bitmap tempScaled = Bitmap.createScaledBitmap(image, scaledWidth, scaledHeight, true);
-//            scaledImage = Bitmap.createBitmap(tempScaled, offsetX, offsetY, gridWidth, gridHeight);
-//
-//            if (tempScaled != scaledImage) {
-//                tempScaled.recycle();
-//            }
-//        }
-//
-//        grid = new PuzzlePiece[config.gridSize][config.gridSize];
-//
-//        for (int row = 0; row < config.gridSize; row++) {
-//            for (int col = 0; col < config.gridSize; col++) {
-//                int x = col * cellWidth;
-//                int y = row * cellHeight;
-//
-//                int width = Math.min(cellWidth, scaledImage.getWidth() - x);
-//                int height = Math.min(cellHeight, scaledImage.getHeight() - y);
-//
-//                if (width <= 0 || height <= 0) continue;
-//
-//                try {
-//                    Bitmap pieceBitmap = Bitmap.createBitmap(scaledImage, x, y, width, height);
-//                    PuzzlePiece piece = new PuzzlePiece(pieceBitmap, row, col, cellWidth, cellHeight);
-//                    allPieces.add(piece);
-//                } catch (Exception e) {
-//                    Log.e(TAG, "Error creating piece [" + row + "," + col + "]", e);
-//                }
-//            }
-//        }
         // ✅ FIX: Tạo pieces CHÍNH XÁC không lặp lại
         for (int row = 0; row < config.gridSize; row++) {
             for (int col = 0; col < config.gridSize; col++) {
@@ -1038,40 +988,66 @@ public class PuzzleView extends View {
         }
 
         try {
-            // Find all 4 corners: top-left, top-right, bottom-left, bottom-right
+            List<int[]> swapsToMake = new ArrayList<>();
+
+            // Create temp grid to simulate swaps
+            PuzzlePiece[][] tempGrid = new PuzzlePiece[config.gridSize][config.gridSize];
+            for (int i = 0; i < config.gridSize; i++) {
+                System.arraycopy(grid[i], 0, tempGrid[i], 0, config.gridSize);
+            }
+
+            // Define 4 corners
             int[][] corners = {
-                    {0, 0},                           // Top-left
-                    {0, config.gridSize - 1},         // Top-right
-                    {config.gridSize - 1, 0},         // Bottom-left
-                    {config.gridSize - 1, config.gridSize - 1}  // Bottom-right
+                    {0, 0},
+                    {0, config.gridSize - 1},
+                    {config.gridSize - 1, 0},
+                    {config.gridSize - 1, config.gridSize - 1}
             };
 
-            List<int[]> cornersToSolve = new ArrayList<>();
-
-            // Check which corners need solving
+            // Solve each corner
             for (int[] corner : corners) {
-                int row = corner[0];
-                int col = corner[1];
+                int targetRow = corner[0];
+                int targetCol = corner[1];
 
-                PuzzlePiece piece = grid[row][col];
+                PuzzlePiece currentPiece = tempGrid[targetRow][targetCol];
 
-                if (piece != null && !piece.isLocked()) {
-                    int correctRow = piece.getCorrectRow();
-                    int correctCol = piece.getCorrectCol();
+                // Skip if already correct
+                if (currentPiece != null &&
+                        currentPiece.getCorrectRow() == targetRow &&
+                        currentPiece.getCorrectCol() == targetCol) {
+                    continue;
+                }
 
-                    // If not in correct position
-                    if (correctRow != row || correctCol != col) {
-                        cornersToSolve.add(new int[]{row, col, correctRow, correctCol});
+                // Find the piece that belongs to this corner
+                boolean found = false;
+                for (int row = 0; row < config.gridSize && !found; row++) {
+                    for (int col = 0; col < config.gridSize && !found; col++) {
+                        PuzzlePiece piece = tempGrid[row][col];
+                        if (piece != null && !piece.isLocked()) {
+                            if (piece.getCorrectRow() == targetRow &&
+                                    piece.getCorrectCol() == targetCol) {
+                                // Found the correct piece
+                                if (row != targetRow || col != targetCol) {
+                                    swapsToMake.add(new int[]{row, col, targetRow, targetCol});
+
+                                    // Swap in tempGrid
+                                    PuzzlePiece temp = tempGrid[targetRow][targetCol];
+                                    tempGrid[targetRow][targetCol] = tempGrid[row][col];
+                                    tempGrid[row][col] = temp;
+                                }
+                                found = true;
+                            }
+                        }
                     }
                 }
             }
 
-            if (cornersToSolve.isEmpty()) {
-                return false; // All corners already solved
+            if (swapsToMake.isEmpty()) {
+                return false;
             }
 
-            // Animate solving corners
-            animateSolveCorners(cornersToSolve);
+            // Animate swaps (real grid will be updated during animation)
+            animateSolveCorners(swapsToMake);
             return true;
 
         } catch (Exception e) {
@@ -1081,6 +1057,35 @@ public class PuzzleView extends View {
         }
     }
 
+    public boolean canSolveCorners() {
+        if (isAnimating || showingCompletion) {
+            return false;
+        }
+
+        // Check all 4 corners
+        int[][] corners = {
+                {0, 0},
+                {0, config.gridSize - 1},
+                {config.gridSize - 1, 0},
+                {config.gridSize - 1, config.gridSize - 1}
+        };
+
+        for (int[] corner : corners) {
+            int row = corner[0];
+            int col = corner[1];
+            PuzzlePiece piece = grid[row][col];
+
+            // If any corner is not correct, we can solve
+            if (piece == null ||
+                    piece.getCorrectRow() != row ||
+                    piece.getCorrectCol() != col) {
+                return true;
+            }
+        }
+
+        return false; // All corners already solved
+    }
+
     /**
      * ✅ NEW: Solve all edge pieces (excluding corners)
      */
@@ -1088,36 +1093,81 @@ public class PuzzleView extends View {
         if (isAnimating || showingCompletion) {
             return false;
         }
-
         try {
-            List<int[]> edgesToSolve = new ArrayList<>();
+            List<int[]> swapsToMake = new ArrayList<>();
 
-            // Top edge (excluding corners)
+            // Create a temporary copy of grid to simulate swaps
+            PuzzlePiece[][] tempGrid = new PuzzlePiece[config.gridSize][config.gridSize];
+            for (int i = 0; i < config.gridSize; i++) {
+                System.arraycopy(grid[i], 0, tempGrid[i], 0, config.gridSize);
+            }
+
+            // Collect all edge positions (excluding corners)
+            List<int[]> edgePositions = new ArrayList<>();
+
+            // Top edge
             for (int col = 1; col < config.gridSize - 1; col++) {
-                checkAndAddEdge(0, col, edgesToSolve);
+                edgePositions.add(new int[]{0, col});
             }
-
-            // Bottom edge (excluding corners)
+            // Bottom edge
             for (int col = 1; col < config.gridSize - 1; col++) {
-                checkAndAddEdge(config.gridSize - 1, col, edgesToSolve);
+                edgePositions.add(new int[]{config.gridSize - 1, col});
             }
-
-            // Left edge (excluding corners)
+            // Left edge
             for (int row = 1; row < config.gridSize - 1; row++) {
-                checkAndAddEdge(row, 0, edgesToSolve);
+                edgePositions.add(new int[]{row, 0});
             }
-
-            // Right edge (excluding corners)
+            // Right edge
             for (int row = 1; row < config.gridSize - 1; row++) {
-                checkAndAddEdge(row, config.gridSize - 1, edgesToSolve);
+                edgePositions.add(new int[]{row, config.gridSize - 1});
             }
 
-            if (edgesToSolve.isEmpty()) {
-                return false; // All edges already solved
+            // For each edge position, find the correct piece and plan the swap
+            for (int[] edgePos : edgePositions) {
+                int targetRow = edgePos[0];
+                int targetCol = edgePos[1];
+
+                PuzzlePiece currentPiece = tempGrid[targetRow][targetCol];
+
+                // Skip if already correct
+                if (currentPiece != null &&
+                        currentPiece.getCorrectRow() == targetRow &&
+                        currentPiece.getCorrectCol() == targetCol) {
+                    continue;
+                }
+
+                // Find the piece that belongs here in tempGrid
+                boolean found = false;
+                for (int row = 0; row < config.gridSize && !found; row++) {
+                    for (int col = 0; col < config.gridSize && !found; col++) {
+                        PuzzlePiece piece = tempGrid[row][col];
+                        if (piece != null && !piece.isLocked()) {
+                            // Check if this piece belongs to this edge position
+                            if (piece.getCorrectRow() == targetRow &&
+                                    piece.getCorrectCol() == targetCol) {
+                                // Found it! Add swap if not already in position
+                                if (row != targetRow || col != targetCol) {
+                                    swapsToMake.add(new int[]{row, col, targetRow, targetCol});
+
+                                    // Update tempGrid (not real grid) for next iterations
+                                    PuzzlePiece temp = tempGrid[targetRow][targetCol];
+                                    tempGrid[targetRow][targetCol] = tempGrid[row][col];
+                                    tempGrid[row][col] = temp;
+
+                                    found = true;
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
-            // Animate solving edges
-            animateSolveEdges(edgesToSolve);
+            if (swapsToMake.isEmpty()) {
+                return false;
+            }
+
+            // Real grid is NOT changed yet - will be changed during animation
+            animateSolveEdges(swapsToMake);
             return true;
 
         } catch (Exception e) {
@@ -1125,6 +1175,41 @@ public class PuzzleView extends View {
             isAnimating = false;
             return false;
         }
+    }
+
+    public boolean canSolveEdges() {
+        if (isAnimating || showingCompletion) {
+            return false;
+        }
+
+        // Check all edge positions (excluding corners)
+        for (int col = 1; col < config.gridSize - 1; col++) {
+            // Top edge
+            PuzzlePiece piece = grid[0][col];
+            if (piece == null || piece.getCorrectRow() != 0 || piece.getCorrectCol() != col) {
+                return true;
+            }
+            // Bottom edge
+            piece = grid[config.gridSize - 1][col];
+            if (piece == null || piece.getCorrectRow() != config.gridSize - 1 || piece.getCorrectCol() != col) {
+                return true;
+            }
+        }
+
+        for (int row = 1; row < config.gridSize - 1; row++) {
+            // Left edge
+            PuzzlePiece piece = grid[row][0];
+            if (piece == null || piece.getCorrectRow() != row || piece.getCorrectCol() != 0) {
+                return true;
+            }
+            // Right edge
+            piece = grid[row][config.gridSize - 1];
+            if (piece == null || piece.getCorrectRow() != row || piece.getCorrectCol() != config.gridSize - 1) {
+                return true;
+            }
+        }
+
+        return false; // All edges already solved
     }
 
     private void checkAndAddEdge(int row, int col, List<int[]> edgesToSolve) {
@@ -1140,6 +1225,48 @@ public class PuzzleView extends View {
         }
     }
 
+    public boolean canAutoSolve() {
+        if (isAnimating || showingCompletion) {
+            return false;
+        }
+
+        // Check if there are any unlocked pieces not in correct position
+        for (int row = 0; row < config.gridSize; row++) {
+            for (int col = 0; col < config.gridSize; col++) {
+                PuzzlePiece piece = grid[row][col];
+                if (piece != null && !piece.isLocked()) {
+                    if (piece.getCorrectRow() != row || piece.getCorrectCol() != col) {
+                        return true; // Found a piece that can be auto-solved
+                    }
+                }
+            }
+        }
+
+        return false; // All pieces are already correct or locked
+    }
+
+    public boolean canShuffle() {
+        if (isAnimating || showingCompletion) {
+            return false;
+        }
+
+        // Check if there are at least 2 unlocked pieces to shuffle
+        int unlockedCount = 0;
+        for (int row = 0; row < config.gridSize; row++) {
+            for (int col = 0; col < config.gridSize; col++) {
+                PuzzlePiece piece = grid[row][col];
+                if (piece != null && !piece.isLocked()) {
+                    unlockedCount++;
+                    if (unlockedCount >= 2) {
+                        return true; // Need at least 2 pieces to shuffle
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
     /**
      * ✅ NEW: Animate solving corners
      */
@@ -1147,17 +1274,20 @@ public class PuzzleView extends View {
         isAnimating = true;
         clearSelection();
 
-        // Solve all corners in sequence
         final int[] currentIndex = {0};
+        Handler handler = new Handler(Looper.getMainLooper());
 
-        Handler handler = new Handler();
         Runnable solveNext = new Runnable() {
             @Override
             public void run() {
                 if (currentIndex[0] >= cornersToSolve.size()) {
-                    // All corners solved
+                    // All corners animated
                     isAnimating = false;
-                    checkLocking();
+
+                    // IMPORTANT: Only lock corners that are actually correct
+                    lockCorrectCorners();
+
+                    invalidate();
 
                     if (listener != null) {
                         listener.onPieceConnected();
@@ -1172,14 +1302,44 @@ public class PuzzleView extends View {
                 }
 
                 int[] corner = cornersToSolve.get(currentIndex[0]);
+
+                // Perform the swap
                 animateSwap(corner[0], corner[1], corner[2], corner[3]);
 
                 currentIndex[0]++;
-                handler.postDelayed(this, 400); // 400ms between each corner
+
+                // Wait for animation to complete (adjust based on your animateSwap duration)
+                handler.postDelayed(this, 400);
             }
         };
 
-        solveNext.run();
+        handler.post(solveNext);
+    }
+
+    // NEW METHOD: Only lock corners that are in correct positions
+    private void lockCorrectCorners() {
+        int[][] corners = {
+                {0, 0},
+                {0, config.gridSize - 1},
+                {config.gridSize - 1, 0},
+                {config.gridSize - 1, config.gridSize - 1}
+        };
+
+        for (int[] corner : corners) {
+            int row = corner[0];
+            int col = corner[1];
+            PuzzlePiece piece = grid[row][col];
+
+            // Only lock if piece is in correct position
+            if (piece != null &&
+                    piece.getCorrectRow() == row &&
+                    piece.getCorrectCol() == col) {
+                piece.setLocked(true);
+                Log.d(TAG, "Locked corner at (" + row + "," + col + ")");
+            } else {
+                Log.w(TAG, "Corner at (" + row + "," + col + ") is NOT correct - not locking");
+            }
+        }
     }
 
     /**
@@ -1189,17 +1349,20 @@ public class PuzzleView extends View {
         isAnimating = true;
         clearSelection();
 
-        // Solve all edges in sequence
         final int[] currentIndex = {0};
+        Handler handler = new Handler(Looper.getMainLooper());
 
-        Handler handler = new Handler();
         Runnable solveNext = new Runnable() {
             @Override
             public void run() {
                 if (currentIndex[0] >= edgesToSolve.size()) {
-                    // All edges solved
+                    // All edges animated
                     isAnimating = false;
-                    checkLocking();
+
+                    // IMPORTANT: Only lock edges that are actually correct
+                    lockCorrectEdges();
+
+                    invalidate();
 
                     if (listener != null) {
                         listener.onPieceConnected();
@@ -1214,14 +1377,100 @@ public class PuzzleView extends View {
                 }
 
                 int[] edge = edgesToSolve.get(currentIndex[0]);
+
+                // Perform the swap
                 animateSwap(edge[0], edge[1], edge[2], edge[3]);
 
                 currentIndex[0]++;
-                handler.postDelayed(this, 200); // 200ms between each edge piece
+
+                // Wait for animation to complete
+                handler.postDelayed(this, 400);
             }
         };
 
-        solveNext.run();
+        handler.post(solveNext);
+    }
+
+    // NEW METHOD: Only lock edges that are in correct positions
+    private void lockCorrectEdges() {
+        for (int row = 0; row < config.gridSize; row++) {
+            for (int col = 0; col < config.gridSize; col++) {
+                // Check if this is an edge position (excluding corners)
+                boolean isEdge = (row == 0 || row == config.gridSize - 1 ||
+                        col == 0 || col == config.gridSize - 1);
+                boolean isCorner = (row == 0 || row == config.gridSize - 1) &&
+                        (col == 0 || col == config.gridSize - 1);
+
+                if (isEdge && !isCorner) {
+                    PuzzlePiece piece = grid[row][col];
+
+                    // Only lock if piece is in correct position
+                    if (piece != null &&
+                            piece.getCorrectRow() == row &&
+                            piece.getCorrectCol() == col) {
+                        piece.setLocked(true);
+                        Log.d(TAG, "Locked edge at (" + row + "," + col + ")");
+                    } else {
+                        Log.w(TAG, "Edge at (" + row + "," + col + ") is NOT correct - not locking");
+                    }
+                }
+            }
+        }
+    }
+
+    private void highlightSwap(int fromRow, int fromCol, int toRow, int toCol) {
+        // Visual feedback for the swap
+        invalidate();
+    }
+
+    private void validateCorners() {
+        int[][] corners = {
+                {0, 0},
+                {0, config.gridSize - 1},
+                {config.gridSize - 1, 0},
+                {config.gridSize - 1, config.gridSize - 1}
+        };
+
+        boolean allCorrect = true;
+        for (int[] corner : corners) {
+            int row = corner[0];
+            int col = corner[1];
+            PuzzlePiece piece = grid[row][col];
+
+            if (piece == null) {
+                Log.e(TAG, "Corner at (" + row + "," + col + ") is NULL!");
+                allCorrect = false;
+            } else if (piece.getCorrectRow() != row || piece.getCorrectCol() != col) {
+                Log.e(TAG, "Corner at (" + row + "," + col + ") is WRONG! Should be (" +
+                        piece.getCorrectRow() + "," + piece.getCorrectCol() + ")");
+                allCorrect = false;
+            } else {
+                Log.d(TAG, "Corner at (" + row + "," + col + ") is CORRECT");
+            }
+        }
+
+        Log.d(TAG, "All corners correct: " + allCorrect);
+    }
+
+    private void lockEdgePieces() {
+        for (int row = 0; row < config.gridSize; row++) {
+            for (int col = 0; col < config.gridSize; col++) {
+                // Check if this is an edge position (excluding corners)
+                boolean isEdge = (row == 0 || row == config.gridSize - 1 ||
+                        col == 0 || col == config.gridSize - 1);
+                boolean isCorner = (row == 0 || row == config.gridSize - 1) &&
+                        (col == 0 || col == config.gridSize - 1);
+
+                if (isEdge && !isCorner) {
+                    PuzzlePiece piece = grid[row][col];
+                    if (piece != null &&
+                            piece.getCorrectRow() == row &&
+                            piece.getCorrectCol() == col) {
+                        piece.setLocked(true);
+                    }
+                }
+            }
+        }
     }
 
     private void animateSwap(int fromRow, int fromCol, int toRow, int toCol) {

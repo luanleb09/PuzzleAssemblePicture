@@ -2,6 +2,7 @@ package com.example.puzzle_assemble_picture;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -15,6 +16,8 @@ import com.google.android.gms.ads.AdView;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final String TAG = "MainActivity";
+
     private RecyclerView modeRecyclerView;
     private Button btnGallery;
     private Button btnAchievements;
@@ -26,6 +29,8 @@ public class MainActivity extends AppCompatActivity {
     private GameProgressManager progressManager;
     private AdView adView;
     private DailyRewardManager dailyRewardManager;
+
+    private ModeSelectAdapter modeAdapter; // ✅ Keep reference to adapter
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,9 +63,10 @@ public class MainActivity extends AppCompatActivity {
         modeRecyclerView.setHasFixedSize(true);
         modeRecyclerView.setItemViewCacheSize(4); // Only 4 modes
 
+        // ✅ Create adapter and keep reference
         List<GameMode> modes = createModeList();
-        ModeSelectAdapter adapter = new ModeSelectAdapter(modes, this::onModeSelected);
-        modeRecyclerView.setAdapter(adapter);
+        modeAdapter = new ModeSelectAdapter(modes, this::onModeSelected);
+        modeRecyclerView.setAdapter(modeAdapter);
 
         // Update progress text
         updateProgressText();
@@ -144,9 +150,12 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
-        // ✅ OPTIMIZE: Only refresh if needed (don't recreate adapter every time)
-        if (modeRecyclerView.getAdapter() != null) {
-            modeRecyclerView.getAdapter().notifyDataSetChanged();
+        Log.d(TAG, "onResume() - Refreshing UI");
+
+        // ✅ CRITICAL: Recreate mode list with updated unlock status
+        List<GameMode> updatedModes = createModeList();
+        if (modeAdapter != null) {
+            modeAdapter.updateModes(updatedModes); // ✅ Update adapter data
         }
 
         updateProgressText();
@@ -155,6 +164,11 @@ public class MainActivity extends AppCompatActivity {
         if (adView != null) {
             adView.resume();
         }
+
+        // ✅ Debug logging
+        Log.d(TAG, "Normal mode unlocked: " + progressManager.isModeUnlocked(GameMode.MODE_NORMAL));
+        Log.d(TAG, "Hard mode unlocked: " + progressManager.isModeUnlocked(GameMode.MODE_HARD));
+        Log.d(TAG, "Insane mode unlocked: " + progressManager.isModeUnlocked(GameMode.MODE_INSANE));
     }
 
     @Override
@@ -168,11 +182,21 @@ public class MainActivity extends AppCompatActivity {
     private List<GameMode> createModeList() {
         List<GameMode> modes = new ArrayList<>();
 
+        // ✅ Check unlock status FRESH every time
+        boolean normalUnlocked = progressManager.isModeUnlocked(GameMode.MODE_NORMAL);
+        boolean hardUnlocked = progressManager.isModeUnlocked(GameMode.MODE_HARD);
+        boolean insaneUnlocked = progressManager.isModeUnlocked(GameMode.MODE_INSANE);
+
+        Log.d(TAG, "Creating mode list:");
+        Log.d(TAG, "  Normal unlocked: " + normalUnlocked);
+        Log.d(TAG, "  Hard unlocked: " + hardUnlocked);
+        Log.d(TAG, "  Insane unlocked: " + insaneUnlocked);
+
         modes.add(new GameMode(
                 GameMode.MODE_EASY,
                 "🟢 Easy Mode",
                 R.drawable.mode_easy,
-                false,
+                false, // Always unlocked
                 1
         ));
 
@@ -180,7 +204,7 @@ public class MainActivity extends AppCompatActivity {
                 GameMode.MODE_NORMAL,
                 "🟡 Normal Mode",
                 R.drawable.mode_normal,
-                !progressManager.isModeUnlocked(GameMode.MODE_NORMAL),
+                !normalUnlocked, // ✅ Use fresh check
                 GameProgressManager.UNLOCK_NORMAL_AT
         ));
 
@@ -188,7 +212,7 @@ public class MainActivity extends AppCompatActivity {
                 GameMode.MODE_HARD,
                 "🔵 Hard Mode",
                 R.drawable.mode_hard,
-                !progressManager.isModeUnlocked(GameMode.MODE_HARD),
+                !hardUnlocked, // ✅ Use fresh check
                 GameProgressManager.UNLOCK_HARD_AT
         ));
 
@@ -196,7 +220,7 @@ public class MainActivity extends AppCompatActivity {
                 GameMode.MODE_INSANE,
                 "🔴 Insane Mode",
                 R.drawable.mode_superhard,
-                !progressManager.isModeUnlocked(GameMode.MODE_INSANE),
+                !insaneUnlocked, // ✅ Use fresh check
                 GameProgressManager.UNLOCK_INSANE_AT
         ));
 

@@ -10,17 +10,22 @@ import androidx.recyclerview.widget.RecyclerView;
 
 public class PowerUpAdapter extends RecyclerView.Adapter<PowerUpAdapter.ViewHolder> {
 
-    private ShopConfig.PowerUp[] powerUps;
-    private CoinManager coinManager;
-    private OnPurchaseListener listener;
+    private final ShopConfig.PowerUp[] powerUps;
+    private final CoinManager coinManager;
+    private final PowerUpsManager powerUpsManager;
+    private final OnPowerUpClickListener listener;
 
-    public interface OnPurchaseListener {
-        void onPurchase(ShopConfig.PowerUp powerUp);
+    public interface OnPowerUpClickListener {
+        void onPowerUpClick(ShopConfig.PowerUp powerUp);
     }
 
-    public PowerUpAdapter(ShopConfig.PowerUp[] powerUps, CoinManager coinManager, OnPurchaseListener listener) {
+    public PowerUpAdapter(ShopConfig.PowerUp[] powerUps,
+                          CoinManager coinManager,
+                          PowerUpsManager powerUpsManager,
+                          OnPowerUpClickListener listener) {
         this.powerUps = powerUps;
         this.coinManager = coinManager;
+        this.powerUpsManager = powerUpsManager;
         this.listener = listener;
     }
 
@@ -34,71 +39,93 @@ public class PowerUpAdapter extends RecyclerView.Adapter<PowerUpAdapter.ViewHold
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        if (powerUps == null || position >= powerUps.length) {
-            return;
-        }
-
         ShopConfig.PowerUp powerUp = powerUps[position];
 
-        if (powerUp == null) {
-            return;
-        }
+        // Set icon
+        holder.iconText.setText(powerUp.icon);
 
-        if (holder.iconText != null) {
-            holder.iconText.setText(powerUp.icon != null ? powerUp.icon : "🎁");
-        }
+        // Set title and description
+        holder.titleText.setText(powerUp.name);
+        holder.descriptionText.setText(powerUp.description);
 
-        if (holder.nameText != null) {
-            holder.nameText.setText(powerUp.name != null ? powerUp.name : "Unknown");
-        }
+        // Set price
+        holder.priceText.setText(String.valueOf(powerUp.coinPrice));
 
-        if (holder.descriptionText != null) {
-            // ✅ THÊM: Show "Coming Soon" badge nếu chưa implement
-            String description = powerUp.description != null ? powerUp.description : "";
-            if (!ShopConfig.isPowerUpImplemented(powerUp.id)) {
-                description += " 🔜";
-            }
-            holder.descriptionText.setText(description);
-        }
-
-        if (holder.buyButton != null && coinManager != null) {
-            // ✅ THAY ĐỔI: Disable button nếu chưa implement
-            boolean isImplemented = ShopConfig.isPowerUpImplemented(powerUp.id);
-            boolean canAfford = coinManager.canAfford(powerUp.coinPrice);
-
-            if (!isImplemented) {
-                holder.buyButton.setText("🔜 Soon");
-                holder.buyButton.setEnabled(false);
-                holder.buyButton.setAlpha(0.5f);
+        // ✅ Show badge with remaining count
+        PowerUpsManager.PowerUpType type = getPowerUpType(powerUp.id);
+        if (type != null) {
+            int remaining = powerUpsManager.getRemainingUses(type);
+            if (remaining > 0) {
+                holder.badgeCount.setVisibility(View.VISIBLE);
+                holder.badgeCount.setText(String.valueOf(remaining));
             } else {
-                holder.buyButton.setText("💰 " + powerUp.coinPrice);
-                holder.buyButton.setEnabled(canAfford);
-                holder.buyButton.setAlpha(canAfford ? 1.0f : 0.5f);
+                holder.badgeCount.setVisibility(View.GONE);
             }
-
-            holder.buyButton.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onPurchase(powerUp);
-                }
-            });
+        } else {
+            holder.badgeCount.setVisibility(View.GONE);
         }
+
+        // ✅ Enable/disable button based on coin balance
+        boolean canAfford = coinManager.canAfford(powerUp.coinPrice);
+        holder.buyButton.setEnabled(canAfford);
+
+        if (canAfford) {
+            holder.buyButton.setText("Buy");
+            holder.buyButton.setAlpha(1.0f);
+        } else {
+            holder.buyButton.setText("Not Enough");
+            holder.buyButton.setAlpha(0.5f);
+        }
+
+        // ✅ Click listener
+        holder.buyButton.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onPowerUpClick(powerUp);
+            }
+        });
     }
 
     @Override
     public int getItemCount() {
-        return powerUps != null ? powerUps.length : 0; // ✅ THÊM: Null check
+        return powerUps != null ? powerUps.length : 0;
+    }
+
+    /**
+     * ✅ Map shop ID to PowerUpType
+     */
+    private PowerUpsManager.PowerUpType getPowerUpType(String id) {
+        switch (id) {
+            case "auto_solve_pack":
+                return PowerUpsManager.PowerUpType.AUTO_SOLVE;
+            case "shuffle_pack":
+                return PowerUpsManager.PowerUpType.SHUFFLE;
+            case "solve_corners":
+                return PowerUpsManager.PowerUpType.SOLVE_CORNERS;
+            case "solve_edges":
+                return PowerUpsManager.PowerUpType.SOLVE_EDGES;
+            case "reveal_preview":
+                return PowerUpsManager.PowerUpType.REVEAL_PREVIEW;
+            default:
+                return null;
+        }
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView iconText, nameText, descriptionText;
+        TextView iconText;
+        TextView badgeCount;
+        TextView titleText;
+        TextView descriptionText;
+        TextView priceText;
         Button buyButton;
 
         ViewHolder(View itemView) {
             super(itemView);
-            iconText = itemView.findViewById(R.id.powerUpIcon);
-            nameText = itemView.findViewById(R.id.powerUpName);
-            descriptionText = itemView.findViewById(R.id.powerUpDescription);
-            buyButton = itemView.findViewById(R.id.btnBuyPowerUp);
+            iconText = itemView.findViewById(R.id.iconText);
+            badgeCount = itemView.findViewById(R.id.badgeCount);
+            titleText = itemView.findViewById(R.id.titleText);
+            descriptionText = itemView.findViewById(R.id.descriptionText);
+            priceText = itemView.findViewById(R.id.priceText);
+            buyButton = itemView.findViewById(R.id.buyButton);
         }
     }
 }

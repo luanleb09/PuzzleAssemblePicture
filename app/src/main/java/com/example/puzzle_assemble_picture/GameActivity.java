@@ -58,7 +58,7 @@ public class GameActivity extends AppCompatActivity {
     private Button shuffleButton;
     private Button solveCornersButton;
     private Button solveEdgesButton;
-    private Button revealPreviewButton;
+    private Button revealPreviewButton; // ✅ FIX: Correct variable name
 
     private ProgressBar progressBar;
     private TextView lockedCountText;
@@ -80,6 +80,11 @@ public class GameActivity extends AppCompatActivity {
     private boolean isLevelCompleted = false;
     private String currentMode;
     private DailyRewardManager dailyRewardManager;
+    private TextView autoSolveBadge;
+    private TextView shuffleBadge;
+    private TextView solveCornersBadge;
+    private TextView solveEdgesBadge;
+    private TextView revealPreviewBadge;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -118,6 +123,12 @@ public class GameActivity extends AppCompatActivity {
             completionOverlay = findViewById(R.id.completionOverlay);
             glowOverlay = findViewById(R.id.glowOverlay);
             konfettiView = findViewById(R.id.konfettiView);
+            autoSolveBadge = findViewById(R.id.autoSolveBadge);
+            shuffleBadge = findViewById(R.id.shuffleBadge);
+            solveCornersBadge = findViewById(R.id.solveCornersBadge);
+            solveEdgesBadge = findViewById(R.id.solveEdgesBadge);
+            revealPreviewBadge = findViewById(R.id.revealPreviewBadge);
+
 
             initSounds();
 
@@ -166,11 +177,12 @@ public class GameActivity extends AppCompatActivity {
 
         powerUpsManager = new PowerUpsManager(this);
 
+        // ✅ FIX: Correct button assignments
         autoSolveButton = findViewById(R.id.autoSolveButton);
         shuffleButton = findViewById(R.id.shuffleButton);
         solveCornersButton = findViewById(R.id.solveCornersButton);
         solveEdgesButton = findViewById(R.id.solveEdgesButton);
-        solveEdgesButton = findViewById(R.id.revealPreviewButton);
+        revealPreviewButton = findViewById(R.id.revealPreviewButton); // ✅ Correct variable
 
         progressBar = findViewById(R.id.progressBar);
         lockedCountText = findViewById(R.id.lockedCountText);
@@ -181,21 +193,28 @@ public class GameActivity extends AppCompatActivity {
         coinManager = new CoinManager(this);
         updateCoinDisplay();
 
+        // ✅ FIX: Correct click listeners
         autoSolveButton.setOnClickListener(v -> useAutoSolve());
         shuffleButton.setOnClickListener(v -> useShuffle());
         solveCornersButton.setOnClickListener(v -> useSolveCorners());
         solveEdgesButton.setOnClickListener(v -> useSolveEdges());
-        solveEdgesButton.setOnClickListener(v -> useRevealPreview());
+        revealPreviewButton.setOnClickListener(v -> useRevealPreview());
 
         updatePowerUpButtons();
 
         dailyRewardManager = new DailyRewardManager(this);
     }
 
+    // ===== POWER-UP: REVEAL PREVIEW =====
+
+    /**
+     * ✅ CORRECT: Use power-up and show full image
+     */
     private void useRevealPreview() {
-        // ✅ CHECK: Only available in Insane mode
+        // Check: Only available in Insane mode
         if (!GameMode.MODE_INSANE.equals(gameMode)) {
-            Toast.makeText(this, "👁️ Reveal Preview is only available in Insane mode!", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "👁️ Reveal Preview is only available in Insane mode!",
+                    Toast.LENGTH_LONG).show();
             return;
         }
 
@@ -204,23 +223,34 @@ public class GameActivity extends AppCompatActivity {
             return;
         }
 
-        powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.REVEAL_PREVIEW, new PowerUpsManager.PowerUpCallback() {
-            @Override
-            public void onSuccess() {
-                isShowingAd = true;
+        // Show confirm dialog
+        new AlertDialog.Builder(this)
+                .setTitle("👁️ Reveal Preview")
+                .setMessage("Temporarily reveal the original image for 5 seconds.\n\n(Only in Insane mode)\n\nCost: 1 item or 20 coins")
+                .setPositiveButton("Use", (dialog, which) -> {
+                    powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.REVEAL_PREVIEW,
+                            new PowerUpsManager.PowerUpCallback() {
+                                @Override
+                                public void onSuccess() {
+                                    isShowingAd = true;
 
-                handler.postDelayed(() -> {
-                    isShowingAd = false;
-                    showRevealPreview();
-                }, 500);
-            }
+                                    handler.postDelayed(() -> {
+                                        isShowingAd = false;
+                                        showRevealPreview();
+                                        updatePowerUpButtons();
+                                        updateCoinDisplay();
+                                    }, 500);
+                                }
 
-            @Override
-            public void onFailed(String reason) {
-                isShowingAd = false;
-                Toast.makeText(GameActivity.this, reason, Toast.LENGTH_SHORT).show();
-            }
-        });
+                                @Override
+                                public void onFailed(String reason) {
+                                    isShowingAd = false;
+                                    Toast.makeText(GameActivity.this, reason, Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     /**
@@ -241,9 +271,9 @@ public class GameActivity extends AppCompatActivity {
         // Add countdown timer
         final TextView countdownText = new TextView(this);
         countdownText.setTextSize(48);
-        countdownText.setTextColor(Color.WHITE);
+        countdownText.setTextColor(android.graphics.Color.WHITE); // ✅ FIX: Full path
         countdownText.setTypeface(null, android.graphics.Typeface.BOLD);
-        countdownText.setShadowLayer(4, 2, 2, Color.BLACK);
+        countdownText.setShadowLayer(4, 2, 2, android.graphics.Color.BLACK); // ✅ FIX: Full path
 
         android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -308,9 +338,329 @@ public class GameActivity extends AppCompatActivity {
                     }
 
                     isRevealingPreview = false;
+
+                    // ✅ FIX: Restore original click listener
+                    fullscreenOverlay.setOnClickListener(v -> hideFullscreenImage());
                 })
                 .start();
     }
+
+    // ===== OTHER POWER-UPS =====
+
+    private void useAutoSolve() {
+        if (isShowingAd) {
+            Toast.makeText(this, "Please wait...", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Check if can auto-solve BEFORE using powerup
+        if (!puzzleView.canAutoSolve()) {
+            Toast.makeText(this, "✅ All pieces are already solved!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Show confirm dialog
+        new AlertDialog.Builder(this)
+                .setTitle("✨ Auto Solve")
+                .setMessage("Automatically solve one random piece.\n\nCost: 1 item or 20 coins")
+                .setPositiveButton("Use", (dialog, which) -> {
+                    powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.AUTO_SOLVE,
+                            new PowerUpsManager.PowerUpCallback() {
+                                @Override
+                                public void onSuccess() {
+                                    isShowingAd = true;
+
+                                    boolean solved = puzzleView.autoSolveOnePiece();
+
+                                    handler.postDelayed(() -> {
+                                        isShowingAd = false;
+
+                                        if (solved) {
+                                            if (!puzzleView.isPuzzleCompleted()) {
+                                                Toast.makeText(GameActivity.this, "✨ One piece auto-solved!",
+                                                        Toast.LENGTH_SHORT).show();
+                                                updateStats();
+                                                updatePowerUpButtons();
+                                                updateCoinDisplay();
+                                            }
+                                        } else {
+                                            Toast.makeText(GameActivity.this, "No pieces to auto-solve!",
+                                                    Toast.LENGTH_SHORT).show();
+                                        }
+                                    }, 1500);
+                                }
+
+                                @Override
+                                public void onFailed(String reason) {
+                                    isShowingAd = false;
+                                    Toast.makeText(GameActivity.this, reason, Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void useShuffle() {
+        if (isShowingAd) {
+            Toast.makeText(this, "Please wait...", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Check if can shuffle BEFORE using powerup
+        if (!puzzleView.canShuffle()) {
+            Toast.makeText(this, "⚠️ Not enough pieces to shuffle!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Show confirm dialog
+        new AlertDialog.Builder(this)
+                .setTitle("🔀 Shuffle Pieces")
+                .setMessage("Randomly shuffle all unlocked pieces.\n\n⚠️ This will reset your current streak!\n\nCost: 1 item or 20 coins")
+                .setPositiveButton("Use", (dialog, which) -> {
+                    powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.SHUFFLE,
+                            new PowerUpsManager.PowerUpCallback() {
+                                @Override
+                                public void onSuccess() {
+                                    isShowingAd = true;
+
+                                    boolean shuffled = puzzleView.shuffleRemainingPieces();
+
+                                    handler.postDelayed(() -> {
+                                        isShowingAd = false;
+
+                                        if (shuffled) {
+                                            Toast.makeText(GameActivity.this, "🔀 Pieces shuffled!",
+                                                    Toast.LENGTH_SHORT).show();
+                                            currentStreak = 0;
+                                            updateStats();
+                                            updatePowerUpButtons();
+                                            updateCoinDisplay();
+                                        } else {
+                                            Toast.makeText(GameActivity.this, "No pieces to shuffle!",
+                                                    Toast.LENGTH_SHORT).show();
+                                        }
+                                    }, 1500);
+                                }
+
+                                @Override
+                                public void onFailed(String reason) {
+                                    isShowingAd = false;
+                                    Toast.makeText(GameActivity.this, reason, Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void useSolveCorners() {
+        if (isShowingAd) {
+            Toast.makeText(this, "Please wait...", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Check if corners can be solved BEFORE using powerup
+        if (!puzzleView.canSolveCorners()) {
+            Toast.makeText(this, "✅ All corners are already solved!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Show confirm dialog
+        new AlertDialog.Builder(this)
+                .setTitle("🎯 Solve Corners")
+                .setMessage("Automatically solve all 4 corner pieces.\n\nCost: 1 item or 20 coins")
+                .setPositiveButton("Use", (dialog, which) -> {
+                    powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.SOLVE_CORNERS,
+                            new PowerUpsManager.PowerUpCallback() {
+                                @Override
+                                public void onSuccess() {
+                                    isShowingAd = true;
+
+                                    boolean solved = puzzleView.solveCorners();
+
+                                    handler.postDelayed(() -> {
+                                        isShowingAd = false;
+
+                                        if (solved) {
+                                            if (!puzzleView.isPuzzleCompleted()) {
+                                                Toast.makeText(GameActivity.this, "📐 All 4 corners solved!",
+                                                        Toast.LENGTH_SHORT).show();
+                                                updateStats();
+                                                updatePowerUpButtons();
+                                                updateCoinDisplay();
+                                            }
+                                        } else {
+                                            Toast.makeText(GameActivity.this, "Corners already solved!",
+                                                    Toast.LENGTH_SHORT).show();
+                                        }
+                                    }, 1500);
+                                }
+
+                                @Override
+                                public void onFailed(String reason) {
+                                    isShowingAd = false;
+                                    Toast.makeText(GameActivity.this, reason, Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+
+    private void useSolveEdges() {
+        if (isShowingAd) {
+            Toast.makeText(this, "Please wait...", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Check if edges can be solved BEFORE using powerup
+        if (!puzzleView.canSolveEdges()) {
+            Toast.makeText(this, "✅ All edges are already solved!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Show confirm dialog
+        new AlertDialog.Builder(this)
+                .setTitle("🎯 Solve Edges")
+                .setMessage("Automatically solve all edge pieces (excluding corners).\n\nCost: 1 item or 20 coins")
+                .setPositiveButton("Use", (dialog, which) -> {
+                    powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.SOLVE_EDGES,
+                            new PowerUpsManager.PowerUpCallback() {
+                                @Override
+                                public void onSuccess() {
+                                    isShowingAd = true;
+
+                                    boolean solved = puzzleView.solveEdges();
+
+                                    handler.postDelayed(() -> {
+                                        isShowingAd = false;
+
+                                        if (solved) {
+                                            if (!puzzleView.isPuzzleCompleted()) {
+                                                Toast.makeText(GameActivity.this, "📐 All edges solved!",
+                                                        Toast.LENGTH_SHORT).show();
+                                                updateStats();
+                                                updatePowerUpButtons();
+                                                updateCoinDisplay();
+                                            }
+                                        } else {
+                                            Toast.makeText(GameActivity.this, "Edges already solved!",
+                                                    Toast.LENGTH_SHORT).show();
+                                        }
+                                    }, 1500);
+                                }
+
+                                @Override
+                                public void onFailed(String reason) {
+                                    isShowingAd = false;
+                                    Toast.makeText(GameActivity.this, reason, Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    // ===== UPDATE POWER-UP BUTTONS =====
+
+    private void updatePowerUpButtons() {
+        int autoSolveRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.AUTO_SOLVE);
+        int shuffleRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.SHUFFLE);
+        int cornersRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.SOLVE_CORNERS);
+        int edgesRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.SOLVE_EDGES);
+        int revealRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.REVEAL_PREVIEW);
+
+        // ===== Auto-Solve =====
+        autoSolveButton.setText("🎯");
+        autoSolveButton.setEnabled(true);
+        autoSolveButton.setAlpha(autoSolveRemaining > 0 ? 1.0f : 0.8f);
+
+        // Update badge
+        if (autoSolveBadge != null) {
+            if (autoSolveRemaining > 0) {
+                autoSolveBadge.setText(String.valueOf(autoSolveRemaining));
+                autoSolveBadge.setVisibility(View.VISIBLE);
+            } else {
+                autoSolveBadge.setVisibility(View.GONE);
+            }
+        }
+
+        // ===== Shuffle =====
+        shuffleButton.setText("🔀");
+        shuffleButton.setEnabled(true);
+        shuffleButton.setAlpha(shuffleRemaining > 0 ? 1.0f : 0.8f);
+
+        // Update badge
+        if (shuffleBadge != null) {
+            if (shuffleRemaining > 0) {
+                shuffleBadge.setText(String.valueOf(shuffleRemaining));
+                shuffleBadge.setVisibility(View.VISIBLE);
+            } else {
+                shuffleBadge.setVisibility(View.GONE);
+            }
+        }
+
+        // ===== Solve Corners =====
+        solveCornersButton.setText("📐");
+        solveCornersButton.setEnabled(true);
+        solveCornersButton.setAlpha(cornersRemaining > 0 ? 1.0f : 0.8f);
+
+        // Update badge
+        if (solveCornersBadge != null) {
+            if (cornersRemaining > 0) {
+                solveCornersBadge.setText(String.valueOf(cornersRemaining));
+                solveCornersBadge.setVisibility(View.VISIBLE);
+            } else {
+                solveCornersBadge.setVisibility(View.GONE);
+            }
+        }
+
+        // ===== Solve Edges =====
+        solveEdgesButton.setText("🔲");
+        solveEdgesButton.setEnabled(true);
+        solveEdgesButton.setAlpha(edgesRemaining > 0 ? 1.0f : 0.8f);
+
+        // Update badge
+        if (solveEdgesBadge != null) {
+            if (edgesRemaining > 0) {
+                solveEdgesBadge.setText(String.valueOf(edgesRemaining));
+                solveEdgesBadge.setVisibility(View.VISIBLE);
+            } else {
+                solveEdgesBadge.setVisibility(View.GONE);
+            }
+        }
+
+        // ===== Reveal Preview =====
+        revealPreviewButton.setText("👁️");
+        boolean isInsaneMode = GameMode.MODE_INSANE.equals(gameMode);
+        revealPreviewButton.setEnabled(isInsaneMode);
+        revealPreviewButton.setAlpha(isInsaneMode ? (revealRemaining > 0 ? 1.0f : 0.8f) : 0.4f);
+
+        // Update badge
+        if (revealPreviewBadge != null) {
+            if (isInsaneMode && revealRemaining > 0) {
+                revealPreviewBadge.setText(String.valueOf(revealRemaining));
+                revealPreviewBadge.setVisibility(View.VISIBLE);
+            } else {
+                revealPreviewBadge.setVisibility(View.GONE);
+            }
+        }
+    }
+
+    private void updateBadge(TextView badge, int count) {
+        if (badge != null) {
+            if (count > 0) {
+                badge.setText(String.valueOf(count));
+                badge.setVisibility(View.VISIBLE);
+            } else {
+                badge.setVisibility(View.GONE);
+            }
+        }
+    }
+
+    // ===== REST OF THE FILE (UNCHANGED) =====
 
     private void showLoadGameDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -559,28 +909,28 @@ public class GameActivity extends AppCompatActivity {
                 if (isLevelCompleted) return;
                 isLevelCompleted = true;
 
-                // Mark level as completed
-                progressManager.markLevelCompleted(currentMode, currentLevel);
+                // ✅ IMPORTANT: Mark completed IMMEDIATELY with proper mode
+                progressManager.markLevelCompleted(gameMode, currentLevel); // Use gameMode, not currentMode
 
-                // Unlock gallery piece
+                // ✅ Get unlock message AFTER marking completed
+                String unlockMessage = progressManager.getUnlockMessage(gameMode, currentLevel);
+
+                // ✅ Log for debugging
+                Log.d(TAG, "Level completed: " + gameMode + " - Level " + currentLevel);
+                Log.d(TAG, "Unlock message: " + unlockMessage);
+
                 int pieceId = currentLevel - 1;
                 progressManager.unlockGalleryPiece(pieceId);
 
-                // Award coins
-                int reward = CoinManager.getRewardForLevel(currentMode);
+                int reward = CoinManager.getRewardForLevel(gameMode);
                 coinManager.addCoins(reward);
                 updateCoinDisplay();
 
-                // Get unlock message
-                String unlockMessage = progressManager.getUnlockMessage(currentMode, currentLevel);
-
-                // Show completion animation first
                 showCompletionAnimation();
 
-                // ✅ FIX: Delay 6.5s để celebration effects chạy xong
                 handler.postDelayed(() -> {
                     showTapToContinueOverlay(unlockMessage);
-                }, 3000); // ← CHỜ 6.5 giây (3s image + 3.5s effects)
+                }, 3000);
             }
 
             @Override
@@ -590,10 +940,7 @@ public class GameActivity extends AppCompatActivity {
         };
     }
 
-    // ❌ XÓA: Bỏ showCompletionDialog() - không cần popup nữa
-
     private void showTapToContinueOverlay(String unlockMessage) {
-        // Tạo overlay view
         View overlayView = getLayoutInflater().inflate(R.layout.overlay_tap_to_continue, null);
 
         TextView messageText = overlayView.findViewById(R.id.tapToContinueText);
@@ -603,7 +950,6 @@ public class GameActivity extends AppCompatActivity {
             messageText.setText("✨ Tap anywhere to continue ✨");
         }
 
-        // Add overlay to root view
         ViewGroup rootView = findViewById(android.R.id.content);
         rootView.addView(overlayView);
 
@@ -613,7 +959,6 @@ public class GameActivity extends AppCompatActivity {
                 .setDuration(500)
                 .start();
 
-        // Click anywhere to continue
         overlayView.setOnClickListener(v -> {
             overlayView.animate()
                     .alpha(0f)
@@ -621,27 +966,20 @@ public class GameActivity extends AppCompatActivity {
                     .withEndAction(() -> {
                         rootView.removeView(overlayView);
                         puzzleView.hideCompletionImage();
-
-                        // ✅ FIX: Navigate trực tiếp, không show dialog
                         onLevelCompleted();
                     })
                     .start();
         });
     }
 
-    /**
-     * ✅ FIX: Show celebration animation KHÔNG có black overlay
-     */
     private void showCompletionAnimation() {
         completionOverlay.setVisibility(View.VISIBLE);
         completionOverlay.setAlpha(1f);
 
-        // ẨN tất cả effects ban đầu
         if (konfettiView != null) konfettiView.setVisibility(View.INVISIBLE);
         if (glowOverlay != null) glowOverlay.setVisibility(View.INVISIBLE);
         if (levelCompleteText != null) levelCompleteText.setVisibility(View.INVISIBLE);
 
-        // Fade in overlay
         completionOverlay.animate()
                 .alpha(1f)
                 .setDuration(1000)
@@ -725,7 +1063,7 @@ public class GameActivity extends AppCompatActivity {
     }
 
     private void onLevelCompleted() {
-        progressManager.markLevelCompleted(gameMode, currentLevel);
+//        progressManager.markLevelCompleted(gameMode, currentLevel);
         progressManager.clearGameState(gameMode, currentLevel);
         progressManager.addGalleryPiece(currentLevel - 1);
 
@@ -909,25 +1247,19 @@ public class GameActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * ✅ FIX: Exit không auto-save
-     */
     private void showExitDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Exit Level?");
         builder.setMessage("Do you want to save your progress?");
 
-        // ✅ FIX: Exit WITHOUT save
         builder.setPositiveButton("Exit", (dialog, which) -> {
-            // ❌ KHÔNG save khi chọn Exit
             finish();
         });
 
         builder.setNegativeButton("Cancel", null);
 
-        // ✅ FIX: CHỈ save khi chọn Save & Exit
         builder.setNeutralButton("Save & Exit", (dialog, which) -> {
-            saveGame(); // ← CHỈ save ở đây
+            saveGame();
             finish();
         });
 
@@ -1015,395 +1347,7 @@ public class GameActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-
-//        if (!isShowingAd &&
-//                SettingsActivity.isAutoSaveEnabled(this) &&
-//                puzzleView != null &&
-//                puzzleView.isInitialized() &&
-//                !puzzleView.isPuzzleCompleted()) {
-//            saveGame();
-//        }
     }
-
-    private void useAutoSolve() {
-        if (isShowingAd) {
-            Toast.makeText(this, "Please wait...", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.AUTO_SOLVE, new PowerUpsManager.PowerUpCallback() {
-            @Override
-            public void onSuccess() {
-                isShowingAd = true;
-
-                boolean solved = puzzleView.autoSolveOnePiece();
-
-                handler.postDelayed(() -> {
-                    isShowingAd = false;
-
-                    if (solved) {
-                        if (!puzzleView.isPuzzleCompleted()) {
-                            Toast.makeText(GameActivity.this, "✨ One piece auto-solved!", Toast.LENGTH_SHORT).show();
-                            updateStats();
-                            updatePowerUpButtons();
-                            updateCoinDisplay();
-                        }
-                    } else {
-                        Toast.makeText(GameActivity.this, "No pieces to auto-solve!", Toast.LENGTH_SHORT).show();
-                    }
-                }, 1500);
-            }
-
-            @Override
-            public void onFailed(String reason) {
-                isShowingAd = false;
-                Toast.makeText(GameActivity.this, reason, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void useShuffle() {
-        if (isShowingAd) {
-            Toast.makeText(this, "Please wait...", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.SHUFFLE, new PowerUpsManager.PowerUpCallback() {
-            @Override
-            public void onSuccess() {
-                isShowingAd = true;
-
-                boolean shuffled = puzzleView.shuffleRemainingPieces();
-
-                handler.postDelayed(() -> {
-                    isShowingAd = false;
-
-                    if (shuffled) {
-                        Toast.makeText(GameActivity.this, "🔀 Pieces shuffled!", Toast.LENGTH_SHORT).show();
-                        currentStreak = 0;
-                        updateStats();
-                        updatePowerUpButtons();
-                        updateCoinDisplay();
-                    } else {
-                        Toast.makeText(GameActivity.this, "No pieces to shuffle!", Toast.LENGTH_SHORT).show();
-                    }
-                }, 1500);
-            }
-
-            @Override
-            public void onFailed(String reason) {
-                isShowingAd = false;
-                Toast.makeText(GameActivity.this, reason, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void useSolveCorners() {
-        if (isShowingAd) {
-            Toast.makeText(this, "Please wait...", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.SOLVE_CORNERS, new PowerUpsManager.PowerUpCallback() {
-            @Override
-            public void onSuccess() {
-                isShowingAd = true;
-
-                boolean solved = puzzleView.solveCorners();
-
-                handler.postDelayed(() -> {
-                    isShowingAd = false;
-
-                    if (solved) {
-                        if (!puzzleView.isPuzzleCompleted()) {
-                            Toast.makeText(GameActivity.this, "📐 All 4 corners solved!", Toast.LENGTH_SHORT).show();
-                            updateStats();
-                            updatePowerUpButtons();
-                            updateCoinDisplay();
-                        }
-                    } else {
-                        Toast.makeText(GameActivity.this, "Corners already solved!", Toast.LENGTH_SHORT).show();
-                    }
-                }, 1500);
-            }
-
-            @Override
-            public void onFailed(String reason) {
-                isShowingAd = false;
-                Toast.makeText(GameActivity.this, reason, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void useSolveEdges() {
-        if (isShowingAd) {
-            Toast.makeText(this, "Please wait...", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.SOLVE_EDGES, new PowerUpsManager.PowerUpCallback() {
-            @Override
-            public void onSuccess() {
-                isShowingAd = true;
-
-                boolean solved = puzzleView.solveEdges();
-
-                handler.postDelayed(() -> {
-                    isShowingAd = false;
-
-                    if (solved) {
-                        if (!puzzleView.isPuzzleCompleted()) {
-                            Toast.makeText(GameActivity.this, "🔲 All edges solved!", Toast.LENGTH_SHORT).show();
-                            updateStats();
-                            updatePowerUpButtons();
-                            updateCoinDisplay();
-                        }
-                    } else {
-                        Toast.makeText(GameActivity.this, "Edges already solved!", Toast.LENGTH_SHORT).show();
-                    }
-                }, 1500);
-            }
-
-            @Override
-            public void onFailed(String reason) {
-                isShowingAd = false;
-                Toast.makeText(GameActivity.this, reason, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void useRevealPreview() {
-        if (currentDifficulty != DifficultyLevel.INSANE) {
-            Toast.makeText(this, "Reveal Preview is only available in INSANE mode",
-                    Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (powerUpsManager.usePowerUp(PowerUpsManager.PowerUpType.REVEAL_PREVIEW)) {
-            // Lấy 3 ô trống ngẫu nhiên
-            List<int[]> emptyCells = new ArrayList<>();
-            for (int row = 0; row < 9; row++) {
-                for (int col = 0; col < 9; col++) {
-                    if (board[row][col] == 0) {
-                        emptyCells.add(new int[]{row, col});
-                    }
-                }
-            }
-
-            if (emptyCells.isEmpty()) {
-                Toast.makeText(this, "No empty cells to preview!", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            // Chọn tối đa 3 ô
-            Collections.shuffle(emptyCells);
-            int previewCount = Math.min(3, emptyCells.size());
-            List<int[]> previewCells = emptyCells.subList(0, previewCount);
-
-            // Hiện preview
-            showPreviewCells(previewCells);
-
-            Toast.makeText(this, "👁️ Previewing " + previewCount + " cells for 5 seconds",
-                    Toast.LENGTH_SHORT).show();
-
-            // Ẩn sau 5 giây
-            new android.os.Handler(Looper.getMainLooper()).postDelayed(() -> {
-                hidePreviewCells();
-                Toast.makeText(this, "Preview ended", Toast.LENGTH_SHORT).show();
-            }, 5000);
-        }
-    }
-
-    private void updatePowerUpButtons() {
-        int autoSolveRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.AUTO_SOLVE);
-        int shuffleRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.SHUFFLE);
-        int cornersRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.SOLVE_CORNERS);
-        int edgesRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.SOLVE_EDGES);
-        int revealRemaining = powerUpsManager.getRemainingUses(PowerUpsManager.PowerUpType.REVEAL_PREVIEW);
-
-        // Auto-Solve - chỉ hiện icon
-        autoSolveButton.setText("🎯");
-        autoSolveButton.setEnabled(true);
-        autoSolveButton.setAlpha(autoSolveRemaining > 0 ? 1.0f : 0.8f);
-
-        // Shuffle - chỉ hiện icon
-        shuffleButton.setText("🔀");
-        shuffleButton.setEnabled(true);
-        shuffleButton.setAlpha(shuffleRemaining > 0 ? 1.0f : 0.8f);
-
-        // Solve Corners - chỉ hiện icon
-        solveCornersButton.setText("📐");
-        solveCornersButton.setEnabled(true);
-        solveCornersButton.setAlpha(cornersRemaining > 0 ? 1.0f : 0.8f);
-
-        // Solve Edges - chỉ hiện icon
-        solveEdgesButton.setText("🔲");
-        solveEdgesButton.setEnabled(true);
-        solveEdgesButton.setAlpha(edgesRemaining > 0 ? 1.0f : 0.8f);
-
-        // Reveal Preview - chỉ hiện icon, chỉ enabled ở INSANE mode
-        revealPreviewButton.setText("👁️");
-        boolean isInsaneMode = currentDifficulty == DifficultyLevel.INSANE;
-        revealPreviewButton.setEnabled(isInsaneMode);
-        revealPreviewButton.setAlpha(isInsaneMode ? (revealRemaining > 0 ? 1.0f : 0.8f) : 0.4f);
-    }
-
-    private void setupPowerUpButtons() {
-        // Auto-Solve button
-        autoSolveButton.setOnClickListener(v -> {
-            showPowerUpTooltipAndConfirm(v,
-                    "Auto-Solve",
-                    "🎯 Automatically solve one random empty cell",
-                    PowerUpsManager.PowerUpType.AUTO_SOLVE);
-        });
-
-        // Shuffle button
-        shuffleButton.setOnClickListener(v -> {
-            showPowerUpTooltipAndConfirm(v,
-                    "Shuffle",
-                    "🔀 Shuffle all incorrect numbers to new positions",
-                    PowerUpsManager.PowerUpType.SHUFFLE);
-        });
-
-        // Solve Corners button
-        solveCornersButton.setOnClickListener(v -> {
-            showPowerUpTooltipAndConfirm(v,
-                    "Solve Corners",
-                    "📐 Automatically solve all 4 corner cells",
-                    PowerUpsManager.PowerUpType.SOLVE_CORNERS);
-        });
-
-        // Solve Edges button
-        solveEdgesButton.setOnClickListener(v -> {
-            showPowerUpTooltipAndConfirm(v,
-                    "Solve Edges",
-                    "🔲 Automatically solve all edge cells",
-                    PowerUpsManager.PowerUpType.SOLVE_EDGES);
-        });
-
-        // Reveal Preview button
-        revealPreviewButton.setOnClickListener(v -> {
-            if (!revealPreviewButton.isEnabled()) {
-                Toast.makeText(this,
-                        "👁️ Reveal Preview is only available in INSANE mode",
-                        Toast.LENGTH_SHORT).show();
-                return;
-            }
-            showPowerUpTooltipAndConfirm(v,
-                    "Reveal Preview",
-                    "👁️ Preview 3 correct cells for 5 seconds (INSANE mode only)",
-                    PowerUpsManager.PowerUpType.REVEAL_PREVIEW);
-        });
-    }
-
-    private void showPowerUpTooltipAndConfirm(View anchorView, String title,
-                                              String description,
-                                              PowerUpsManager.PowerUpType powerUpType) {
-        int remaining = powerUpsManager.getRemainingUses(powerUpType);
-
-        // Hiện tooltip trước
-        String tooltipMessage = description + "\n\n";
-        if (remaining > 0) {
-            tooltipMessage += "✅ Remaining: " + remaining + " use" + (remaining > 1 ? "s" : "");
-        } else {
-            tooltipMessage += "📺 Watch an ad to get 3 more uses";
-        }
-
-        Toast.makeText(this, tooltipMessage, Toast.LENGTH_LONG).show();
-
-        // Sau đó hiện confirm dialog
-        new android.os.Handler(Looper.getMainLooper()).postDelayed(() -> {
-            showConfirmationDialog(title, description, remaining, powerUpType);
-        }, 600);
-    }
-
-    private void showConfirmationDialog(String title, String description,
-                                        int remaining,
-                                        PowerUpsManager.PowerUpType powerUpType) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-
-        // Title với icon
-        String iconTitle = "";
-        switch (powerUpType) {
-            case AUTO_SOLVE:
-                iconTitle = "🎯 " + title;
-                break;
-            case SHUFFLE:
-                iconTitle = "🔀 " + title;
-                break;
-            case SOLVE_CORNERS:
-                iconTitle = "📐 " + title;
-                break;
-            case SOLVE_EDGES:
-                iconTitle = "🔲 " + title;
-                break;
-            case REVEAL_PREVIEW:
-                iconTitle = "👁️ " + title;
-                break;
-        }
-        builder.setTitle(iconTitle);
-
-        // Message
-        String message = description + "\n\n";
-        if (remaining > 0) {
-            message += "You have " + remaining + " use" + (remaining > 1 ? "s" : "") + " remaining.\n\n";
-            message += "Do you want to use this power-up now?";
-        } else {
-            message += "You have no uses left.\n\n";
-            message += "Watch an ad to get 3 more uses?";
-        }
-        builder.setMessage(message);
-
-        // Buttons
-        builder.setPositiveButton("Yes", (dialog, which) -> {
-            if (remaining > 0) {
-                // Sử dụng power-up
-                usePowerUp(powerUpType);
-            } else {
-                // Xem ad để nhận power-up
-                showAdForPowerUp(powerUpType);
-            }
-        });
-
-        builder.setNegativeButton("No", (dialog, which) -> {
-            dialog.dismiss();
-        });
-
-        // Styling
-        AlertDialog dialog = builder.create();
-        dialog.show();
-
-        // Optional: Customize button colors
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(
-                getResources().getColor(android.R.color.holo_green_dark));
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(
-                getResources().getColor(android.R.color.holo_red_dark));
-    }
-
-    private void usePowerUp(PowerUpsManager.PowerUpType powerUpType) {
-        switch (powerUpType) {
-            case AUTO_SOLVE:
-                useAutoSolve();
-                break;
-            case SHUFFLE:
-                useShuffle();
-                break;
-            case SOLVE_CORNERS:
-                useSolveCorners();
-                break;
-            case SOLVE_EDGES:
-                useSolveEdges();
-                break;
-            case REVEAL_PREVIEW:
-                useRevealPreview();
-                break;
-        }
-
-        // Update UI và save
-        updatePowerUpButtons();
-        powerUpsManager.savePowerUps(this);
-    }
-
 
     private void updateStats() {
         int totalPieces = gridSize * gridSize;
@@ -1436,6 +1380,7 @@ public class GameActivity extends AppCompatActivity {
         super.onDestroy();
 
         handler.removeCallbacksAndMessages(null);
+        revealHandler.removeCallbacksAndMessages(null); // ✅ Also cleanup reveal handler
         dismissDownloadDialog();
         recycleBitmap();
 

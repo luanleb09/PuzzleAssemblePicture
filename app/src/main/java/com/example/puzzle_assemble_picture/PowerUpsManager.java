@@ -23,7 +23,7 @@ public class PowerUpsManager {
     private static final String TAG = "PowerUpsManager";
     private static final String PREFS_NAME = "PowerUpsPrefs";
 
-    // Keys
+    // Keys for SharedPreferences
     private static final String KEY_AUTO_SOLVE_COUNT = "autoSolveCount";
     private static final String KEY_SHUFFLE_COUNT = "shuffleCount";
     private static final String KEY_SOLVE_CORNERS_COUNT = "solveCornersCount";
@@ -31,15 +31,15 @@ public class PowerUpsManager {
     private static final String KEY_REVEAL_PREVIEW_COUNT = "revealPreviewCount";
     private static final String KEY_LAST_RESET_DATE = "lastResetDate";
 
-    // Initial free uses per day
+    // ✅ Daily free uses for each power-up
     private static final int DAILY_AUTO_SOLVE = 3;
     private static final int DAILY_SHUFFLE = 5;
     private static final int DAILY_SOLVE_CORNERS = 2;
     private static final int DAILY_SOLVE_EDGES = 1;
     private static final int DAILY_REVEAL_PREVIEW = 2;
 
-    // Rewarded ad unit IDs (Test IDs)
-    private static final String TEST_REWARDED_AD_ID = "ca-app-pub-3940256099942544/5224354917";
+    // Rewarded ad unit ID (Test ID - replace with production ID)
+    private static final String REWARDED_AD_ID = GameConfig.REWARDED_AD_ID;
 
     private SharedPreferences prefs;
     private Context context;
@@ -48,6 +48,7 @@ public class PowerUpsManager {
     private PowerUpType pendingPowerUp = null;
     private PowerUpCallback pendingCallback = null;
 
+    // ✅ Enum for all 5 power-up types
     public enum PowerUpType {
         AUTO_SOLVE,
         SHUFFLE,
@@ -68,13 +69,12 @@ public class PowerUpsManager {
         // Check and reset daily if needed
         checkAndResetDaily();
 
-        // ❌ XÓA: Không load ad trong constructor
-        // loadRewardedAd();
-
-        // ✅ THAY ĐỔI: Ad sẽ được load lazily khi cần
         Log.d(TAG, "PowerUpsManager initialized (ads will load on demand)");
     }
 
+    /**
+     * ✅ Add uses to a power-up (e.g., from shop purchase or rewards)
+     */
     public void addUses(PowerUpType type, int amount) {
         String key = getKeyForType(type);
         int currentUses = prefs.getInt(key, 0);
@@ -86,14 +86,14 @@ public class PowerUpsManager {
     }
 
     /**
-     * Check if it's a new day and reset free uses
+     * ✅ Check if it's a new day and reset free uses
      */
     private void checkAndResetDaily() {
         String today = getTodayDate();
         String lastResetDate = prefs.getString(KEY_LAST_RESET_DATE, "");
 
         if (!today.equals(lastResetDate)) {
-            Log.d(TAG, "New day detected! Resetting free uses.");
+            Log.d(TAG, "📅 New day detected! Resetting free uses.");
 
             prefs.edit()
                     .putInt(KEY_AUTO_SOLVE_COUNT, DAILY_AUTO_SOLVE)
@@ -101,11 +101,10 @@ public class PowerUpsManager {
                     .putInt(KEY_SOLVE_CORNERS_COUNT, DAILY_SOLVE_CORNERS)
                     .putInt(KEY_SOLVE_EDGES_COUNT, DAILY_SOLVE_EDGES)
                     .putInt(KEY_REVEAL_PREVIEW_COUNT, DAILY_REVEAL_PREVIEW)
-
                     .putString(KEY_LAST_RESET_DATE, today)
                     .apply();
 
-            Log.d(TAG, "✓ Reset complete");
+            Log.d(TAG, "✅ Daily reset complete!");
         }
     }
 
@@ -115,23 +114,23 @@ public class PowerUpsManager {
     }
 
     /**
-     * Use a power-up (Priority: Free → Coins → Ads)
+     * ✅ Use a power-up (Priority: Free → Coins → Ads)
      */
     public void usePowerUp(PowerUpType type, PowerUpCallback callback) {
         int remaining = getRemainingUses(type);
 
         if (remaining > 0) {
-            // 1. Dùng free daily uses
+            // 1. Use free daily uses
             decrementCount(type);
             callback.onSuccess();
         } else {
-            // 2. Không còn free, show options: Coins hoặc Ads
+            // 2. No free uses left, show options: Coins or Ads
             showPurchaseOptions(type, callback);
         }
     }
 
     /**
-     * Show purchase options: Buy with coins or watch ad
+     * ✅ Show purchase options: Buy with coins or watch ad
      */
     private void showPurchaseOptions(PowerUpType type, PowerUpCallback callback) {
         if (!(context instanceof Activity)) {
@@ -139,33 +138,40 @@ public class PowerUpsManager {
             return;
         }
 
-        // ✅ THÊM: Ensure ad is loading/loaded khi cần
+        // Ensure ad is loading/loaded when needed
         ensureAdLoaded();
 
         CoinManager coinManager = new CoinManager(context);
-        int cost = (type == PowerUpType.AUTO_SOLVE) ? GameConfig.COST_AUTO_SOLVE : GameConfig.COST_SHUFFLE : GameConfig.COST_SOLVE_CORNERS : GameConfig.COST_SOLVE_EDGES : GameConfig.COST_REVEAL_PREVIEW;
-        String powerUpName = (type == PowerUpType.AUTO_SOLVE) ? "Auto-Solve" : "Shuffle";
+
+        // ✅ FIX: Use switch-case instead of chained ternary
+        int cost = getCostForType(type);
+        String powerUpName = getNameForType(type);
         int currentCoins = coinManager.getCoins();
 
         AlertDialog.Builder builder = new AlertDialog.Builder((Activity) context);
         builder.setTitle("Use " + powerUpName + "?");
         builder.setMessage(
-                "No free uses left today!\n\n" +
-                        "Options:\n" +
-                        "• Buy: " + cost + " coins (You have: " + currentCoins + ")\n" +
-                        "• Watch an ad (Free)"
+                "❌ No free uses left today!\n\n" +
+                        "Choose an option:\n" +
+                        "💰 Buy with " + cost + " coins (You have: " + currentCoins + ")\n" +
+                        "📺 Watch an ad (Free)\n\n" +
+                        "Daily free uses reset at midnight!"
         );
 
         // Option 1: Buy with coins
         if (coinManager.canAfford(cost)) {
             builder.setPositiveButton("💰 Buy (" + cost + " coins)", (dialog, which) -> {
                 if (coinManager.spendCoins(cost)) {
-                    Toast.makeText(context, "✅ Purchased! -" + cost + " coins", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, "✅ Purchased! -" + cost + " coins",
+                            Toast.LENGTH_SHORT).show();
                     callback.onSuccess();
                 } else {
                     callback.onFailed("Not enough coins!");
                 }
             });
+        } else {
+            // Not enough coins - show disabled button or hide it
+            builder.setPositiveButton("💰 Buy (" + cost + " coins) - Not enough!", null);
         }
 
         // Option 2: Watch ad
@@ -174,13 +180,16 @@ public class PowerUpsManager {
         });
 
         // Option 3: Cancel
-        builder.setNeutralButton("Cancel", null);
+        builder.setNeutralButton("Cancel", (dialog, which) -> {
+            callback.onFailed("Cancelled");
+        });
 
+        builder.setCancelable(false);
         builder.show();
     }
 
     /**
-     * Get remaining free uses
+     * ✅ Get remaining free uses
      */
     public int getRemainingUses(PowerUpType type) {
         String key = getKeyForType(type);
@@ -188,17 +197,20 @@ public class PowerUpsManager {
     }
 
     /**
-     * Decrement count
+     * ✅ Decrement count
      */
     private void decrementCount(PowerUpType type) {
         String key = getKeyForType(type);
         int current = prefs.getInt(key, 0);
         if (current > 0) {
             prefs.edit().putInt(key, current - 1).apply();
-            Log.d(TAG, type + " count: " + (current - 1));
+            Log.d(TAG, type + " count: " + current + " → " + (current - 1));
         }
     }
 
+    /**
+     * ✅ Get cost for power-up type (in coins)
+     */
     private int getCostForType(PowerUpType type) {
         switch (type) {
             case AUTO_SOLVE:
@@ -217,7 +229,7 @@ public class PowerUpsManager {
     }
 
     /**
-     * ✅ NEW: Get name for power-up type
+     * ✅ Get display name for power-up type
      */
     private String getNameForType(PowerUpType type) {
         switch (type) {
@@ -230,12 +242,15 @@ public class PowerUpsManager {
             case SOLVE_EDGES:
                 return "Solve Edges";
             case REVEAL_PREVIEW:
-                return  "Reveal Preview 10 seconds";
+                return "Reveal Preview";
             default:
                 return "Power-Up";
         }
     }
 
+    /**
+     * ✅ Get SharedPreferences key for power-up type
+     */
     private String getKeyForType(PowerUpType type) {
         switch (type) {
             case AUTO_SOLVE:
@@ -254,7 +269,7 @@ public class PowerUpsManager {
     }
 
     /**
-     * ✅ THÊM: Ensure ad is loaded (call this when needed)
+     * ✅ Ensure ad is loaded (call this when needed)
      */
     private void ensureAdLoaded() {
         if (rewardedAd == null && !isLoadingAd) {
@@ -263,10 +278,10 @@ public class PowerUpsManager {
     }
 
     /**
-     * Load rewarded ad (MUST be called on main thread)
+     * ✅ Load rewarded ad (MUST be called on main thread)
      */
     private void loadRewardedAd() {
-        // ✅ CHECK: Must be on main thread
+        // Check if on main thread
         if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
             // Not on main thread, post to main thread
             if (context instanceof Activity) {
@@ -279,7 +294,7 @@ public class PowerUpsManager {
     }
 
     /**
-     * ✅ PRIVATE: Internal ad loading (guaranteed to be on main thread)
+     * ✅ Internal ad loading (guaranteed to be on main thread)
      */
     private void loadRewardedAdInternal() {
         if (isLoadingAd || rewardedAd != null) {
@@ -289,12 +304,12 @@ public class PowerUpsManager {
         isLoadingAd = true;
         AdRequest adRequest = new AdRequest.Builder().build();
 
-        RewardedAd.load(context, TEST_REWARDED_AD_ID, adRequest, new RewardedAdLoadCallback() {
+        RewardedAd.load(context, REWARDED_AD_ID, adRequest, new RewardedAdLoadCallback() {
             @Override
             public void onAdLoaded(@NonNull RewardedAd ad) {
                 rewardedAd = ad;
                 isLoadingAd = false;
-                Log.d(TAG, "✓ Rewarded ad loaded");
+                Log.d(TAG, "✅ Rewarded ad loaded successfully");
                 setupAdCallbacks();
             }
 
@@ -307,14 +322,18 @@ public class PowerUpsManager {
         });
     }
 
+    /**
+     * ✅ Setup ad callbacks
+     */
     private void setupAdCallbacks() {
         if (rewardedAd == null) return;
 
         rewardedAd.setFullScreenContentCallback(new FullScreenContentCallback() {
             @Override
             public void onAdDismissedFullScreenContent() {
+                Log.d(TAG, "📺 Ad dismissed");
                 rewardedAd = null;
-                loadRewardedAd();
+                loadRewardedAd(); // Preload next ad
             }
 
             @Override
@@ -330,13 +349,13 @@ public class PowerUpsManager {
 
             @Override
             public void onAdShowedFullScreenContent() {
-                Log.d(TAG, "Ad showed");
+                Log.d(TAG, "📺 Ad showed");
             }
         });
     }
 
     /**
-     * Show rewarded ad
+     * ✅ Show rewarded ad for power-up
      */
     private void showRewardedAdForPowerUp(PowerUpType type, PowerUpCallback callback) {
         if (!(context instanceof Activity)) {
@@ -351,7 +370,7 @@ public class PowerUpsManager {
             pendingCallback = callback;
 
             rewardedAd.show(activity, rewardItem -> {
-                Log.d(TAG, "✓ User earned reward");
+                Log.d(TAG, "✅ User earned reward: " + rewardItem.getAmount());
 
                 if (pendingCallback != null) {
                     pendingCallback.onSuccess();
@@ -366,47 +385,76 @@ public class PowerUpsManager {
             if (!isLoadingAd) {
                 pendingPowerUp = type;
                 pendingCallback = callback;
-                Toast.makeText(context, "Loading ad...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, "⏳ Loading ad...", Toast.LENGTH_SHORT).show();
                 loadRewardedAd();
 
+                // Wait 2 seconds then try again
                 new android.os.Handler().postDelayed(() -> {
                     if (rewardedAd != null && pendingCallback != null) {
                         showRewardedAdForPowerUp(pendingPowerUp, pendingCallback);
                     } else if (pendingCallback != null) {
-                        pendingCallback.onFailed("Ad not available");
+                        pendingCallback.onFailed("Ad not available. Please try again later.");
                         pendingCallback = null;
                         pendingPowerUp = null;
                     }
                 }, 2000);
             } else {
-                callback.onFailed("Ad is loading, please wait");
+                callback.onFailed("Ad is loading, please wait...");
             }
         }
     }
 
+    /**
+     * ✅ Reload ad manually
+     */
     public void reloadAd() {
         loadRewardedAd();
     }
 
+    /**
+     * ✅ Check if ad is ready
+     */
     public boolean isAdReady() {
         return rewardedAd != null;
     }
 
+    /**
+     * ✅ Reset to initial daily values (for testing)
+     */
     public void resetToInitial() {
         prefs.edit()
                 .putInt(KEY_AUTO_SOLVE_COUNT, DAILY_AUTO_SOLVE)
                 .putInt(KEY_SHUFFLE_COUNT, DAILY_SHUFFLE)
+                .putInt(KEY_SOLVE_CORNERS_COUNT, DAILY_SOLVE_CORNERS)
+                .putInt(KEY_SOLVE_EDGES_COUNT, DAILY_SOLVE_EDGES)
+                .putInt(KEY_REVEAL_PREVIEW_COUNT, DAILY_REVEAL_PREVIEW)
                 .putString(KEY_LAST_RESET_DATE, getTodayDate())
                 .apply();
-        Log.d(TAG, "✓ Reset to initial");
+        Log.d(TAG, "✅ Reset to initial values");
     }
 
+    /**
+     * ✅ Get debug info (for testing)
+     */
     public String getDebugInfo() {
         CoinManager coinManager = new CoinManager(context);
-        return "Auto-Solve: " + getRemainingUses(PowerUpType.AUTO_SOLVE) + "/" + DAILY_AUTO_SOLVE + "\n" +
-                "Shuffle: " + getRemainingUses(PowerUpType.SHUFFLE) + "/" + DAILY_SHUFFLE + "\n" +
-                "Coins: " + coinManager.getCoins() + "\n" +
-                "Last Reset: " + prefs.getString(KEY_LAST_RESET_DATE, "Never") + "\n" +
-                "Ad Ready: " + isAdReady();
+        return "=== Power-Ups Status ===\n" +
+                "🎯 Auto-Solve: " + getRemainingUses(PowerUpType.AUTO_SOLVE) + "/" + DAILY_AUTO_SOLVE + "\n" +
+                "🔀 Shuffle: " + getRemainingUses(PowerUpType.SHUFFLE) + "/" + DAILY_SHUFFLE + "\n" +
+                "📐 Solve Corners: " + getRemainingUses(PowerUpType.SOLVE_CORNERS) + "/" + DAILY_SOLVE_CORNERS + "\n" +
+                "🔲 Solve Edges: " + getRemainingUses(PowerUpType.SOLVE_EDGES) + "/" + DAILY_SOLVE_EDGES + "\n" +
+                "👁️ Reveal Preview: " + getRemainingUses(PowerUpType.REVEAL_PREVIEW) + "/" + DAILY_REVEAL_PREVIEW + "\n\n" +
+                "💰 Coins: " + coinManager.getCoins() + "\n" +
+                "📅 Last Reset: " + prefs.getString(KEY_LAST_RESET_DATE, "Never") + "\n" +
+                "📺 Ad Ready: " + (isAdReady() ? "✅ Yes" : "❌ No");
+    }
+
+    /**
+     * ✅ Save power-ups state (called from GameActivity)
+     */
+    public void savePowerUps(Context context) {
+        // Power-ups are automatically saved via SharedPreferences
+        // This method exists for compatibility with existing code
+        Log.d(TAG, "💾 Power-ups state saved");
     }
 }

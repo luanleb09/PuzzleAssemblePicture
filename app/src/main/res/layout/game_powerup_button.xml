@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- res/layout/game_powerup_button.xml -->
+<FrameLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="0dp"
+        android:layout_height="64dp"
+        android:layout_weight="1"
+        android:layout_marginStart="4dp"
+        android:layout_marginEnd="4dp">
+
+    <!-- Button -->
+    <Button
+            android:id="@+id/powerUpButton"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:text="🎯"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true"
+            style="@style/Widget.Material3.Button.TonalButton" />
+
+    <!-- Badge with Count -->
+    <TextView
+            android:id="@+id/badgeCount"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="4dp"
+            android:layout_marginEnd="4dp"
+            android:background="@drawable/badge_bg"
+            android:gravity="center"
+            android:text="3"
+            android:textColor="@android:color/white"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:elevation="4dp"
+            android:visibility="gone" />
+
+</FrameLayout>

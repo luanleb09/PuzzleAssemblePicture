@@ -27,6 +27,13 @@ public class ModeSelectAdapter extends RecyclerView.Adapter<ModeSelectAdapter.Mo
         this.listener = listener;
     }
 
+    // ✅ NEW: Method to update modes when returning from game
+    public void updateModes(List<GameMode> newModes) {
+        this.modes.clear();
+        this.modes.addAll(newModes);
+        notifyDataSetChanged();
+    }
+
     @NonNull
     @Override
     public ModeViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {

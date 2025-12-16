@@ -266,8 +266,8 @@
             android:id="@+id/puzzleView"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            android:layout_marginTop="4dp"
-            android:layout_marginBottom="4dp"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="2dp"
             android:layout_marginLeft="6dp"
             android:layout_marginRight="6dp"
             app:layout_constraintTop_toBottomOf="@id/topInfoLayout"
@@ -275,85 +275,200 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
+    <!-- ===== REPLACE Power-ups Bar Section ===== -->
+    <!-- Find this section in activity_game.xml and replace it -->
+
     <!-- Power-ups Bar -->
     <LinearLayout
             android:id="@+id/powerUpsBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:padding="8dp"
+            android:padding="-1dp"
             android:gravity="center"
             android:weightSum="5"
+            android:clipChildren="false"
+            android:clipToPadding="false"
             app:layout_constraintBottom_toTopOf="@id/buttonBar">
 
-        <!-- Auto-Solve Button - Chỉ hiện icon 🎯 -->
-        <Button
-                android:id="@+id/autoSolveButton"
+        <!-- Auto-Solve Button with Badge -->
+        <FrameLayout
                 android:layout_width="0dp"
-                android:layout_height="64dp"
+                android:layout_height="50dp"
                 android:layout_weight="1"
-                android:text="🎯"
-                android:textSize="28sp"
-                android:textStyle="bold"
-                android:contentDescription="Auto-Solve: Automatically solve one random cell"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_marginEnd="4dp"/>
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="4dp"
+                android:clipChildren="false">
 
-        <!-- Shuffle Button - Chỉ hiện icon 🔀 -->
-        <Button
-                android:id="@+id/shuffleButton"
-                android:layout_width="0dp"
-                android:layout_height="64dp"
-                android:layout_weight="1"
-                android:text="🔀"
-                android:textSize="28sp"
-                android:textStyle="bold"
-                android:contentDescription="Shuffle: Shuffle incorrect numbers"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_marginStart="4dp"
-                android:layout_marginEnd="4dp"/>
+            <Button
+                    android:id="@+id/autoSolveButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:text="🎯"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:contentDescription="Auto-Solve"
+                    style="@style/Widget.Material3.Button.TonalButton" />
 
-        <!-- Solve Corners Button - Chỉ hiện icon 📐 -->
-        <Button
-                android:id="@+id/solveCornersButton"
-                android:layout_width="0dp"
-                android:layout_height="64dp"
-                android:layout_weight="1"
-                android:text="📐"
-                android:textSize="28sp"
-                android:textStyle="bold"
-                android:contentDescription="Solve Corners: Automatically solve all 4 corner cells"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_marginStart="4dp"
-                android:layout_marginEnd="4dp"/>
+            <TextView
+                    android:id="@+id/autoSolveBadge"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginEnd="2dp"
+                    android:background="@drawable/badge_bg"
+                    android:gravity="center"
+                    android:text="3"
+                    android:textColor="@android:color/white"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:elevation="4dp"
+                    android:visibility="gone" />
+        </FrameLayout>
 
-        <!-- Solve Edges Button - Chỉ hiện icon 🔲 -->
-        <Button
-                android:id="@+id/solveEdgesButton"
+        <!-- Shuffle Button with Badge -->
+        <FrameLayout
                 android:layout_width="0dp"
-                android:layout_height="64dp"
+                android:layout_height="50dp"
                 android:layout_weight="1"
-                android:text="🔲"
-                android:textSize="28sp"
-                android:textStyle="bold"
-                android:contentDescription="Solve Edges: Automatically solve all edge cells"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_marginStart="4dp"
-                android:layout_marginEnd="4dp"/>
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp"
+                android:clipChildren="false">
 
-        <!-- Reveal Preview Button - Chỉ hiện icon 👁️, enabled chỉ ở INSANE mode -->
-        <Button
-                android:id="@+id/revealPreviewButton"
+            <Button
+                    android:id="@+id/shuffleButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:text="🔀"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:contentDescription="Shuffle"
+                    style="@style/Widget.Material3.Button.TonalButton" />
+
+            <TextView
+                    android:id="@+id/shuffleBadge"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginEnd="2dp"
+                    android:background="@drawable/badge_bg"
+                    android:gravity="center"
+                    android:text="5"
+                    android:textColor="@android:color/white"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:elevation="4dp"
+                    android:visibility="gone" />
+        </FrameLayout>
+
+        <!-- Solve Corners Button with Badge -->
+        <FrameLayout
                 android:layout_width="0dp"
-                android:layout_height="64dp"
+                android:layout_height="50dp"
                 android:layout_weight="1"
-                android:text="👁️"
-                android:textSize="28sp"
-                android:textStyle="bold"
-                android:contentDescription="Reveal Preview: Preview 3 cells for 5 seconds (INSANE mode only)"
-                android:visibility="visible"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_marginStart="4dp"/>
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp"
+                android:clipChildren="false">
+
+            <Button
+                    android:id="@+id/solveCornersButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:text="📐"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:contentDescription="Solve Corners"
+                    style="@style/Widget.Material3.Button.TonalButton"/>
+            <TextView
+                    android:id="@+id/solveCornersBadge"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginEnd="2dp"
+                    android:background="@drawable/badge_bg"
+                    android:gravity="center"
+                    android:text="2"
+                    android:textColor="@android:color/white"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:elevation="4dp"
+                    android:visibility="gone" />
+        </FrameLayout>
+
+        <!-- Solve Edges Button with Badge -->
+        <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp"
+                android:clipChildren="false">
+
+            <Button
+                    android:id="@+id/solveEdgesButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:text="🔲"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:contentDescription="Solve Edges"
+                    style="@style/Widget.Material3.Button.TonalButton" />
+
+            <TextView
+                    android:id="@+id/solveEdgesBadge"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginEnd="2dp"
+                    android:background="@drawable/badge_bg"
+                    android:gravity="center"
+                    android:text="1"
+                    android:textColor="@android:color/white"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:elevation="4dp"
+                    android:visibility="gone" />
+        </FrameLayout>
+
+        <!-- Reveal Preview Button with Badge -->
+        <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_weight="1"
+                android:layout_marginStart="2dp"
+                android:clipChildren="false">
+
+            <Button
+                    android:id="@+id/revealPreviewButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:text="👁️"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:contentDescription="Reveal Preview"
+                    android:visibility="visible"
+                    style="@style/Widget.Material3.Button.TonalButton" />
+
+            <TextView
+                    android:id="@+id/revealPreviewBadge"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginEnd="2dp"
+                    android:background="@drawable/badge_bg"
+                    android:gravity="center"
+                    android:text="2"
+                    android:textColor="@android:color/white"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:elevation="4dp"
+                    android:visibility="gone" />
+        </FrameLayout>
 
     </LinearLayout>
 

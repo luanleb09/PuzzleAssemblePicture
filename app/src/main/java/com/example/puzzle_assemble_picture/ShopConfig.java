@@ -66,7 +66,7 @@ public class ShopConfig {
                     "🔀"
             ),
 
-            // ✅ Additional Power-ups (coming soon features)
+            // ✅ Additional Power-ups
             new PowerUp(
                     "solve_corners",
                     "📐 Solve 4 Pieces Corners",
@@ -87,7 +87,7 @@ public class ShopConfig {
                     80,
                     "Show full image for 10 seconds (use for Insane mode)",
                     "👁️"
-            ),
+            )
     };
 
     // ===== IN-APP PURCHASE IDs (for Google Play) =====
@@ -163,14 +163,14 @@ public class ShopConfig {
     }
 
     /**
-     * Check if power-up is currently implemented in game
+     * ✅ FIXED: Check if power-up is currently implemented in game
      */
     public static boolean isPowerUpImplemented(String id) {
         switch (id) {
             case "auto_solve_pack":
             case "shuffle_pack":
-            case "auto_solve_pack":
-            case "shuffle_pack":
+            case "solve_corners":
+            case "solve_edges":
             case "reveal_preview":
                 return true; // ✅ Already working
             default:
