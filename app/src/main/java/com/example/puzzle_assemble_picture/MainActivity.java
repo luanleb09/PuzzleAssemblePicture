@@ -20,7 +20,6 @@ public class MainActivity extends AppCompatActivity {
 
     private RecyclerView modeRecyclerView;
     private Button btnGallery;
-    private Button btnAchievements;
     private Button btnSettings;
     private TextView progressText;
 

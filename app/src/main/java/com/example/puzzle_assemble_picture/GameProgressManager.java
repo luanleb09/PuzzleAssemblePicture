@@ -14,11 +14,6 @@ public class GameProgressManager {
     private static final String KEY_GAME_STATE = "game_state_";
     private static final String KEY_CURRENT_LEVEL = "current_level_";
     private static final String KEY_COMPLETED_LEVELS = "completed_levels_";
-    private static final String KEY_ACHIEVEMENTS = "achievements";
-
-    // Achievement constants
-    public static final int PIECES_PER_ACHIEVEMENT = 10;
-    public static final int TOTAL_ACHIEVEMENTS = 10;
 
     // Game constants
     public static final int MAX_LEVEL = 300;
@@ -82,8 +77,8 @@ public class GameProgressManager {
             }
         }
 
-        // ✅ IMPORTANT: Apply immediately with commit() instead of apply()
-        editor.commit(); // Use commit() to ensure data is written immediately
+        // Use commit() instead of apply() to ensure data is written immediately
+        editor.commit();
 
         Log.d(TAG, "✅ Data committed to SharedPreferences");
 
@@ -204,40 +199,35 @@ public class GameProgressManager {
      * Get grid size based on level
      */
     public int getGridSizeForLevel(int level) {
-        // Bắt đầu từ 5x5, tăng dần
         if (level <= 5) {
-            return 5;  // Level 1-5: 5×5 (25 pieces)
+            return 5;
         } else if (level <= 10) {
-            return 6;  // Level 6-10: 6×6 (36 pieces)
+            return 6;
         } else if (level <= 15) {
-            return 7;  // Level 11-15: 7×7 (49 pieces)
+            return 7;
         } else if (level <= 20) {
-            return 8;  // Level 16-20: 8×8 (64 pieces)
+            return 8;
         } else if (level <= 25) {
-            return 9;  // Level 21-25: 9×9 (81 pieces)
+            return 9;
         } else if (level <= 30) {
-            return 10; // Level 26-30: 10×10 (100 pieces)
+            return 10;
         } else {
-            return 11; // Level 31+: 11×11 (121 pieces)
+            return 11;
         }
     }
 
     // ===== GALLERY METHODS =====
 
     /**
-     * Add a piece to gallery
+     * Add a piece to gallery (unlock a piece)
+     * pieceIndex = level - 1 (so level 1 unlocks piece 0, level 2 unlocks piece 1, etc.)
      */
     public void addGalleryPiece(int pieceIndex) {
         String currentPieces = prefs.getString(KEY_GALLERY_PIECES, "");
         if (!currentPieces.contains("," + pieceIndex + ",")) {
             currentPieces += pieceIndex + ",";
             prefs.edit().putString(KEY_GALLERY_PIECES, currentPieces).apply();
-
-            // Auto check for new achievements
-            Integer newAchievement = checkAndUnlockAchievement();
-            if (newAchievement != null) {
-                Log.d(TAG, "New achievement unlocked: " + getAchievementName(newAchievement));
-            }
+            Log.d(TAG, "Gallery piece " + pieceIndex + " unlocked");
         }
     }
 
@@ -266,9 +256,11 @@ public class GameProgressManager {
         return count;
     }
 
+    /**
+     * Unlock a gallery piece (alias for addGalleryPiece)
+     */
     public void unlockGalleryPiece(int pieceIndex) {
         addGalleryPiece(pieceIndex);
-        Log.d(TAG, "Gallery piece " + pieceIndex + " unlocked");
     }
 
     /**
@@ -299,140 +291,6 @@ public class GameProgressManager {
      */
     public void clearAllGalleryPieces() {
         prefs.edit().remove(KEY_GALLERY_PIECES).apply();
-    }
-
-    // ===== ACHIEVEMENT METHODS =====
-
-    /**
-     * Check if achievement is unlocked
-     */
-    public boolean isAchievementUnlocked(int achievementIndex) {
-        int requiredPieces = (achievementIndex + 1) * PIECES_PER_ACHIEVEMENT;
-        int unlockedPieces = getUnlockedPiecesCount();
-        return unlockedPieces >= requiredPieces;
-    }
-
-    /**
-     * Get list of unlocked achievements
-     */
-    public List<Integer> getUnlockedAchievements() {
-        List<Integer> unlockedList = new ArrayList<>();
-        for (int i = 0; i < TOTAL_ACHIEVEMENTS; i++) {
-            if (isAchievementUnlocked(i)) {
-                unlockedList.add(i);
-            }
-        }
-        return unlockedList;
-    }
-
-    /**
-     * Get total number of achievements
-     */
-    public int getTotalAchievements() {
-        return TOTAL_ACHIEVEMENTS;
-    }
-
-    /**
-     * Get number of unlocked achievements
-     */
-    public int getUnlockedAchievementsCount() {
-        return getUnlockedAchievements().size();
-    }
-
-    /**
-     * Get achievement progress (0-100%)
-     */
-    public int getAchievementProgress(int achievementIndex) {
-        int startPiece = achievementIndex * PIECES_PER_ACHIEVEMENT;
-        int endPiece = startPiece + PIECES_PER_ACHIEVEMENT - 1;
-
-        int unlockedInRange = 0;
-        for (int i = startPiece; i <= endPiece; i++) {
-            if (isGalleryPieceUnlocked(i)) {
-                unlockedInRange++;
-            }
-        }
-
-        return (unlockedInRange * 100) / PIECES_PER_ACHIEVEMENT;
-    }
-
-    /**
-     * Get achievement name
-     */
-    public String getAchievementName(int achievementIndex) {
-        switch (achievementIndex) {
-            case 0: return "Beginner";
-            case 1: return "Novice";
-            case 2: return "Apprentice";
-            case 3: return "Intermediate";
-            case 4: return "Advanced";
-            case 5: return "Expert";
-            case 6: return "Master";
-            case 7: return "Grandmaster";
-            case 8: return "Legend";
-            case 9: return "Ultimate Champion";
-            default: return "Achievement " + (achievementIndex + 1);
-        }
-    }
-
-    /**
-     * Get achievement description
-     */
-    public String getAchievementDescription(int achievementIndex) {
-        int requiredPieces = (achievementIndex + 1) * PIECES_PER_ACHIEVEMENT;
-        return "Collect " + requiredPieces + " gallery pieces";
-    }
-
-    /**
-     * Get achievement emoji
-     */
-    public String getAchievementEmoji(int achievementIndex) {
-        switch (achievementIndex) {
-            case 0: return "🌱";
-            case 1: return "🌿";
-            case 2: return "🌳";
-            case 3: return "⭐";
-            case 4: return "🌟";
-            case 5: return "💫";
-            case 6: return "🏆";
-            case 7: return "👑";
-            case 8: return "💎";
-            case 9: return "🔥";
-            default: return "🎯";
-        }
-    }
-
-    /**
-     * Check and unlock achievement if conditions met
-     * Returns newly unlocked achievement index or null
-     */
-    public Integer checkAndUnlockAchievement() {
-        int unlockedCount = getUnlockedPiecesCount();
-
-        for (int i = 0; i < TOTAL_ACHIEVEMENTS; i++) {
-            int requiredPieces = (i + 1) * PIECES_PER_ACHIEVEMENT;
-
-            if (unlockedCount >= requiredPieces) {
-                String key = KEY_ACHIEVEMENTS + "_" + i;
-                if (!prefs.getBoolean(key, false)) {
-                    prefs.edit().putBoolean(key, true).apply();
-                    return i;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Reset all achievements
-     */
-    public void resetAchievements() {
-        SharedPreferences.Editor editor = prefs.edit();
-        for (int i = 0; i < TOTAL_ACHIEVEMENTS; i++) {
-            editor.remove(KEY_ACHIEVEMENTS + "_" + i);
-        }
-        editor.apply();
     }
 
     // ===== GAME STATE (SAVE/LOAD) =====

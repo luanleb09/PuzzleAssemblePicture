@@ -1,192 +1,225 @@
 package com.example.puzzle_assemble_picture;
 
+import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.ImageView;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 import java.util.List;
-import com.google.android.gms.ads.AdView;
 
 public class GalleryActivity extends AppCompatActivity {
 
     private static final String TAG = "GalleryActivity";
 
     private RecyclerView galleryRecyclerView;
+    private TextView progressText;
+    private ProgressBar progressBar;
     private GameProgressManager progressManager;
     private PuzzleImageLoader imageLoader;
-    private AdView adView;
+    private GalleryAdapter galleryAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_gallery);
 
         try {
-            setContentView(R.layout.activity_gallery);
-
             progressManager = new GameProgressManager(this);
             imageLoader = new PuzzleImageLoader(this);
 
+            // Initialize views with null checks
             galleryRecyclerView = findViewById(R.id.galleryRecyclerView);
+            progressText = findViewById(R.id.progressText);
+            progressBar = findViewById(R.id.progressBar);
 
+            // Verify all views are found
             if (galleryRecyclerView == null) {
-                Log.e(TAG, "❌ galleryRecyclerView not found in layout");
-                Toast.makeText(this, "Error: Gallery view not found", Toast.LENGTH_SHORT).show();
+                Log.e(TAG, "❌ galleryRecyclerView not found in layout!");
+                Toast.makeText(this, "Layout error: RecyclerView missing", Toast.LENGTH_LONG).show();
                 finish();
                 return;
             }
 
+            if (progressText == null) {
+                Log.e(TAG, "❌ progressText not found in layout!");
+                Toast.makeText(this, "Layout error: ProgressText missing", Toast.LENGTH_LONG).show();
+                finish();
+                return;
+            }
+
+            if (progressBar == null) {
+                Log.e(TAG, "❌ progressBar not found in layout!");
+                Toast.makeText(this, "Layout error: ProgressBar missing", Toast.LENGTH_LONG).show();
+                finish();
+                return;
+            }
+
+            findViewById(R.id.backButton).setOnClickListener(v -> finish());
+
+            // Setup grid layout (3 columns)
             galleryRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
             galleryRecyclerView.setHasFixedSize(true);
 
-            if (findViewById(R.id.backButton) != null) {
-                findViewById(R.id.backButton).setOnClickListener(v -> finish());
-            }
-
-            List<GalleryItem> items = createGalleryItems();
-
-            if (items == null || items.isEmpty()) {
-                Log.w(TAG, "⚠️ No gallery items available");
-                Toast.makeText(this, "No puzzle pieces unlocked yet", Toast.LENGTH_SHORT).show();
-            }
-
-            // ✅ FIX: Use GalleryPieceAdapter
-            GalleryPieceAdapter adapter = new GalleryPieceAdapter(items, this, this::onPieceClicked);
-            galleryRecyclerView.setAdapter(adapter);
-
-            adView = findViewById(R.id.adView);
-            if (adView != null) {
-                AdMobHelper.loadBannerAd(adView);
-            }
-
-            Log.d(TAG, "✅ GalleryActivity created successfully with " + items.size() + " items");
+            // Load gallery
+            loadGallery();
 
         } catch (Exception e) {
-            Log.e(TAG, "❌ Error in GalleryActivity onCreate", e);
-            Toast.makeText(this, "Error loading gallery: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "Error in onCreate", e);
+            Toast.makeText(this, "Error loading gallery: " + e.getMessage(), Toast.LENGTH_LONG).show();
             finish();
+        }
+    }
+
+    private void loadGallery() {
+        try {
+            List<GalleryItem> galleryItems = createGalleryItems();
+
+            // ✅ Pass imageLoader to adapter
+            galleryAdapter = new GalleryAdapter(galleryItems, this::onGalleryItemClick, imageLoader);
+            galleryRecyclerView.setAdapter(galleryAdapter);
+
+            updateProgress(galleryItems);
+        } catch (Exception e) {
+            Log.e(TAG, "Error loading gallery", e);
+            Toast.makeText(this, "Failed to load gallery", Toast.LENGTH_SHORT).show();
         }
     }
 
     private List<GalleryItem> createGalleryItems() {
         List<GalleryItem> items = new ArrayList<>();
 
-        try {
-            int totalPieces = 100;
+        // Total 100 pieces (levels 1-100, can be expanded to 300 later)
+        int totalPieces = 100;
 
-            for (int i = 0; i < totalPieces; i++) {
-                boolean isUnlocked = progressManager.isGalleryPieceUnlocked(i);
-
-                int imageResId = getResources().getIdentifier(
-                        "level_" + (i + 1),
-                        "drawable",
-                        getPackageName()
-                );
-
-                if (imageResId != 0 || !isUnlocked) {
-                    items.add(new GalleryItem(i, isUnlocked, imageResId));
-                } else {
-                    Log.w(TAG, "⚠️ Image resource not found for piece " + i);
-                }
-            }
-
-            Log.d(TAG, "✅ Created " + items.size() + " gallery items");
-
-        } catch (Exception e) {
-            Log.e(TAG, "❌ Error creating gallery items", e);
+        for (int i = 0; i < totalPieces; i++) {
+            boolean isUnlocked = progressManager.isGalleryPieceUnlocked(i);
+            items.add(new GalleryItem(i, isUnlocked));
         }
 
         return items;
     }
 
-    private void onPieceClicked(GalleryItem item) {
-        try {
-            if (item == null) {
-                Log.e(TAG, "Clicked item is null");
-                return;
-            }
-
-            if (!item.isUnlocked) {
-                Toast.makeText(this,
-                        "🔒 Complete Level " + (item.pieceId + 1) + " to unlock!",
-                        Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            showFullImageDialog(item);
-
-        } catch (Exception e) {
-            Log.e(TAG, "Error handling piece click", e);
-            Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+    private void onGalleryItemClick(GalleryItem item) {
+        if (!item.isUnlocked) {
+            showLockedDialog(item);
+            return;
         }
+
+        // Show full image
+        showFullImage(item.pieceIndex + 1); // Level = pieceIndex + 1
     }
 
-    private void showFullImageDialog(GalleryItem item) {
+    private void showLockedDialog(GalleryItem item) {
+        int requiredLevel = item.pieceIndex + 1;
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("🔒 Locked");
+        builder.setMessage("Complete Level " + requiredLevel + " in any mode to unlock this image!");
+        builder.setPositiveButton("OK", null);
+        builder.show();
+    }
+
+    private void showFullImage(int level) {
         try {
-            android.app.Dialog dialog = new android.app.Dialog(
-                    this,
-                    android.R.style.Theme_Black_NoTitleBar_Fullscreen
-            );
-            dialog.setContentView(R.layout.dialog_full_image);
+            // Create fullscreen dialog
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            View dialogView = getLayoutInflater().inflate(R.layout.dialog_full_image, null);
 
-            android.widget.ImageView fullImageView = dialog.findViewById(R.id.fullImageView);
+            ImageView fullImageView = dialogView.findViewById(R.id.fullImageView);
+            ProgressBar loadingBar = dialogView.findViewById(R.id.loadingProgressBar);
+            TextView levelText = dialogView.findViewById(R.id.levelText);
 
-            // ✅ FIX: Try different ID for close button
-            android.widget.ImageView closeButton = dialog.findViewById(R.id.closeButton);
-            if (closeButton == null) {
-                closeButton = dialog.findViewById(R.id.btnClose);
-            }
-
-            if (fullImageView == null) {
-                Log.e(TAG, "fullImageView not found in dialog");
-                Toast.makeText(this, "Error loading image view", Toast.LENGTH_SHORT).show();
+            if (fullImageView == null || loadingBar == null || levelText == null) {
+                Toast.makeText(this, "Dialog layout error", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            if (item.imageResId != 0) {
-                fullImageView.setImageResource(item.imageResId);
-            } else {
-                int levelNumber = item.pieceId + 1;
-                imageLoader.loadLevelImage(levelNumber, new PuzzleImageLoader.ImageLoadCallback() {
-                    @Override
-                    public void onSuccess(android.graphics.Bitmap bitmap) {
-                        runOnUiThread(() -> {
-                            if (bitmap != null) {
-                                fullImageView.setImageBitmap(bitmap);
-                            }
-                        });
-                    }
+            levelText.setText("Level " + level);
 
-                    @Override
-                    public void onError(String error) {
-                        runOnUiThread(() -> {
-                            Toast.makeText(GalleryActivity.this,
-                                    "Failed to load image: " + error,
-                                    Toast.LENGTH_SHORT).show();
-                            dialog.dismiss();
-                        });
-                    }
+            builder.setView(dialogView);
+            AlertDialog dialog = builder.create();
 
-                    @Override
-                    public void onDownloadProgress(int progress) {
-                        // Silent
-                    }
-                });
-            }
+            // Load full resolution image
+            loadingBar.setVisibility(View.VISIBLE);
+            fullImageView.setVisibility(View.GONE);
 
-            if (closeButton != null) {
-                closeButton.setOnClickListener(v -> dialog.dismiss());
-            }
+            imageLoader.loadLevelImage(level, new PuzzleImageLoader.ImageLoadCallback() {
+                @Override
+                public void onSuccess(Bitmap bitmap) {
+                    runOnUiThread(() -> {
+                        if (dialog.isShowing()) {
+                            loadingBar.setVisibility(View.GONE);
+                            fullImageView.setVisibility(View.VISIBLE);
+                            fullImageView.setImageBitmap(bitmap);
+                        }
+                    });
+                }
 
-            fullImageView.setOnClickListener(v -> dialog.dismiss());
+                @Override
+                public void onError(String error) {
+                    runOnUiThread(() -> {
+                        if (dialog.isShowing()) {
+                            loadingBar.setVisibility(View.GONE);
+                            levelText.setText("Failed to load image");
+                        }
+                    });
+                }
+
+                @Override
+                public void onDownloadProgress(int progress) {
+                    runOnUiThread(() -> {
+                        if (dialog.isShowing() && loadingBar.getVisibility() == View.VISIBLE) {
+                            // Can update loading text if needed
+                            levelText.setText("Loading... " + progress + "%");
+                        }
+                    });
+                }
+            });
+
+            // Click to dismiss
+            dialogView.setOnClickListener(v -> dialog.dismiss());
 
             dialog.show();
 
         } catch (Exception e) {
-            Log.e(TAG, "Error showing full image dialog", e);
-            Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "Error showing full image", e);
+            Toast.makeText(this, "Failed to show image", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void updateProgress(List<GalleryItem> items) {
+        try {
+            int unlockedCount = 0;
+            int totalCount = items.size();
+
+            for (GalleryItem item : items) {
+                if (item.isUnlocked) {
+                    unlockedCount++;
+                }
+            }
+
+            int percentage = totalCount > 0 ? (unlockedCount * 100) / totalCount : 0;
+
+            if (progressText != null) {
+                progressText.setText(unlockedCount + "/" + totalCount + " unlocked");
+            }
+
+            if (progressBar != null) {
+                progressBar.setProgress(percentage);
+            }
+
+            Log.d(TAG, "Gallery progress: " + unlockedCount + "/" + totalCount + " (" + percentage + "%)");
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error updating progress", e);
         }
     }
 
@@ -194,48 +227,25 @@ public class GalleryActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
 
-        if (adView != null) {
-            adView.destroy();
+        // Cleanup adapter bitmaps
+        if (galleryAdapter != null) {
+            galleryAdapter.cleanup();
         }
 
+        // Cleanup image loader
         if (imageLoader != null) {
             imageLoader.cancelDownloads();
         }
     }
 
-    // ✅ Data classes
+    // Gallery Item class
     public static class GalleryItem {
-        public int pieceId;
+        public int pieceIndex;
         public boolean isUnlocked;
-        public int imageResId;
 
-        public GalleryItem(int pieceId, boolean isUnlocked, int imageResId) {
-            this.pieceId = pieceId;
+        public GalleryItem(int pieceIndex, boolean isUnlocked) {
+            this.pieceIndex = pieceIndex;
             this.isUnlocked = isUnlocked;
-            this.imageResId = imageResId;
-        }
-    }
-
-    // ✅ Backward compatibility
-    public static class GalleryPieceItem extends GalleryItem {
-        public GalleryPieceItem(int pieceId, boolean isUnlocked, int imageResId) {
-            super(pieceId, isUnlocked, imageResId);
-        }
-    }
-
-    public static class AchievementItem {
-        public String id;
-        public String icon;
-        public String title;
-        public String description;
-        public int targetValue;
-
-        public AchievementItem(String id, String icon, String title, String description, int targetValue) {
-            this.id = id;
-            this.icon = icon;
-            this.title = title;
-            this.description = description;
-            this.targetValue = targetValue;
         }
     }
 }

@@ -1,115 +1,76 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/md_theme_light_background">
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              android:background="#F5F5F5">
 
     <!-- Top Bar -->
-    <com.google.android.material.card.MaterialCardView
-            android:id="@+id/topBar"
+    <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardElevation="4dp"
-            app:cardCornerRadius="0dp"
-            app:layout_constraintTop_toTopOf="parent">
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:background="#FFFFFF"
+            android:elevation="4dp"
+            android:gravity="center_vertical">
 
-        <LinearLayout
-                android:layout_width="match_parent"
+        <ImageButton
+                android:id="@+id/backButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_revert"
+                android:contentDescription="Back" />
+
+        <TextView
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:padding="12dp"
-                android:gravity="center_vertical">
+                android:layout_weight="1"
+                android:text="Gallery"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="#000000"
+                android:layout_marginStart="8dp" />
 
-            <ImageButton
-                    android:id="@+id/backButton"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:src="@android:drawable/ic_menu_revert"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Back" />
+    </LinearLayout>
 
-            <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="🖼️ Gallery &amp; Achievements"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/md_theme_light_primary"
-                    android:gravity="center"
-                    android:layout_marginHorizontal="8dp" />
+    <!-- Progress Section -->
+    <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:background="#FFFFFF"
+            android:layout_marginTop="8dp">
 
-        </LinearLayout>
+        <TextView
+                android:id="@+id/progressText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0/100 unlocked"
+                android:textSize="16sp"
+                android:textColor="#000000"
+                android:layout_marginBottom="8dp" />
 
-    </com.google.android.material.card.MaterialCardView>
+        <ProgressBar
+                android:id="@+id/progressBar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="8dp"
+                android:max="100"
+                android:progress="0" />
 
-    <ScrollView
+    </LinearLayout>
+
+    <!-- Gallery Grid -->
+    <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/galleryRecyclerView"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            app:layout_constraintTop_toBottomOf="@id/topBar"
-            app:layout_constraintBottom_toBottomOf="parent">
+            android:layout_weight="1"
+            android:padding="8dp"
+            android:clipToPadding="false" />
 
-        <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-            <!-- Gallery Pieces Section -->
-            <TextView
-                    android:id="@+id/galleryTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Gallery Pieces: 0/100"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/md_theme_light_primary"
-                    android:layout_marginBottom="12dp" />
-
-            <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Complete levels to collect puzzle pieces!"
-                    android:textSize="14sp"
-                    android:textColor="@color/md_theme_light_onBackground"
-                    android:layout_marginBottom="8dp" />
-
-            <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/galleryRecyclerView"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:nestedScrollingEnabled="false"
-                    android:layout_marginBottom="24dp" />
-
-            <!-- Achievements Section -->
-            <TextView
-                    android:id="@+id/achievementsTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Achievements: 0/7"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/md_theme_light_primary"
-                    android:layout_marginBottom="12dp" />
-
-            <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Collect all pieces of a set to unlock the full achievement image!"
-                    android:textSize="14sp"
-                    android:textColor="@color/md_theme_light_onBackground"
-                    android:layout_marginBottom="8dp" />
-
-            <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/achievementsRecyclerView"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:nestedScrollingEnabled="false" />
-
-        </LinearLayout>
-
-    </ScrollView>
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</LinearLayout>
