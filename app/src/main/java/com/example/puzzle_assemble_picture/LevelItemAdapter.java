@@ -90,6 +90,47 @@ public class LevelItemAdapter extends RecyclerView.Adapter<LevelItemAdapter.View
         holder.cardView.setOnClickListener(v -> listener.onLevelClick(item));
     }
 
+//    @Override
+//    public void onBindViewHolder(@NonNull LevelViewHolder holder, int position) {
+//        LevelItem item = items.get(position);
+//
+//        holder.levelNumber.setText(String.valueOf(item.levelNumber));
+//        holder.gridSize.setText(item.gridSize + "x" + item.gridSize);
+//
+//        // Show/hide icons
+//        holder.completedIcon.setVisibility(item.isCompleted ? View.VISIBLE : View.GONE);
+//        holder.savedIcon.setVisibility(item.hasSave ? View.VISIBLE : View.GONE);
+//        holder.downloadIcon.setVisibility(item.needsDownload ? View.VISIBLE : View.GONE);
+//
+//        // Lock overlay
+//        holder.lockOverlay.setVisibility(item.isUnlocked ? View.GONE : View.VISIBLE);
+//
+//        // Click listener
+//        holder.itemView.setOnClickListener(v -> {
+//            if (listener != null) {
+//                listener.onLevelClick(item);
+//            }
+//        });
+//
+//        // ✅ Add ripple/press effect even with custom background
+//        holder.itemView.setClickable(true);
+//        holder.itemView.setFocusable(true);
+//
+//        // Optional: Add scale animation on press
+//        holder.itemView.setOnTouchListener((v, event) -> {
+//            switch (event.getAction()) {
+//                case android.view.MotionEvent.ACTION_DOWN:
+//                    v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(100).start();
+//                    break;
+//                case android.view.MotionEvent.ACTION_UP:
+//                case android.view.MotionEvent.ACTION_CANCEL:
+//                    v.animate().scaleX(1.0f).scaleY(1.0f).setDuration(100).start();
+//                    break;
+//            }
+//            return false;
+//        });
+//    }
+
     @Override
     public int getItemCount() {
         return items.size();

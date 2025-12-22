@@ -19,6 +19,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.Arrays;
+import java.util.Collections;
 
 /**
  * Helper class để load puzzle images từ:
@@ -104,7 +105,7 @@ public class PuzzleImageLoader {
 
         Log.d(TAG, "Loading from pack: " + packName + " for level " + levelNumber);
 
-        assetPackManager.getPackStates(Arrays.asList(packName))
+        assetPackManager.getPackStates(Collections.singletonList(packName))
                 .addOnSuccessListener(assetPackStates -> {
                     AssetPackState state = assetPackStates.packStates().get(packName);
 
@@ -150,7 +151,7 @@ public class PuzzleImageLoader {
     private void downloadAndLoadPack(String packName, int levelNumber, int maxSize, ImageLoadCallback callback) {
         Log.d(TAG, "Requesting download for: " + packName);
 
-        assetPackManager.fetch(Arrays.asList(packName))
+        assetPackManager.fetch(Collections.singletonList(packName))
                 .addOnSuccessListener(aVoid -> {
                     Log.d(TAG, "Download request successful for: " + packName);
                     listenForPackDownload(packName, levelNumber, maxSize, callback);

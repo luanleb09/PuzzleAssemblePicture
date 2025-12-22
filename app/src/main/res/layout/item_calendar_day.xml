@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_calendar_default"
+                android:padding="1dp">
+
+    <!-- Day Number -->
+    <TextView
+            android:id="@+id/dayNumber"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:text="1"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#333333" />
+
+    <!-- Reward Amount -->
+    <TextView
+            android:id="@+id/rewardAmount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/dayNumber"
+            android:layout_centerHorizontal="true"
+            android:text="50🪙"
+            android:textSize="9sp"
+            android:textColor="#FFD700"
+            android:visibility="visible"
+            android:maxLines="1" />
+
+    <!-- Check Mark -->
+    <ImageView
+            android:id="@+id/checkMark"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentTop="true"
+            android:layout_marginTop="2dp"
+            android:layout_marginEnd="2dp"
+            android:src="@drawable/ic_check_small"
+            android:visibility="gone"
+            android:tint="#4CAF50" />
+
+    <!-- Today Indicator -->
+    <View
+            android:id="@+id/todayIndicator"
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:layout_alignParentBottom="true"
+            android:background="#2196F3"
+            android:visibility="gone" />
+
+    <!-- Ad Icon -->
+    <ImageView
+            android:id="@+id/adIcon"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentTop="true"
+            android:layout_marginTop="2dp"
+            android:layout_marginStart="2dp"
+            android:src="@drawable/ic_ad_small"
+            android:visibility="gone"
+            android:tint="#FF9800" />
+
+</RelativeLayout>

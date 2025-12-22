@@ -5,11 +5,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PuzzlePiece {
-    private Bitmap bitmap;
-    private int correctRow, correctCol;
-    private int width, height;
+    private final Bitmap bitmap;
+    private final int correctRow;
+    private final int correctCol;
+    private final int width;
+    private final int height;
     private boolean isLocked;
-    private List<PuzzlePiece> connectedPieces;
+    private final List<PuzzlePiece> connectedPieces;
 
     public PuzzlePiece(Bitmap bitmap, int correctRow, int correctCol, int width, int height) {
         this.bitmap = bitmap;

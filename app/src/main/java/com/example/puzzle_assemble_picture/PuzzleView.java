@@ -70,7 +70,7 @@ public class PuzzleView extends View {
     private boolean isAnimating = false;
     private boolean showingCompletion = false;
 
-    private Map<PuzzlePiece, PointF> animatedPositions = new HashMap<>();
+    private final Map<PuzzlePiece, PointF> animatedPositions = new HashMap<>();
 
     // Reset zoom button
     private RectF resetZoomButtonRect;

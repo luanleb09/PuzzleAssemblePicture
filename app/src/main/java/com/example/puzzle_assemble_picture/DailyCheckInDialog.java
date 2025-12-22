@@ -1,272 +1,281 @@
 package com.example.puzzle_assemble_picture;
 
+import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
-import android.graphics.Color;
+import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.LinearLayout;
+import android.widget.GridLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
-import java.text.SimpleDateFormat;
+import com.google.android.gms.ads.AdError;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.FullScreenContentCallback;
+import com.google.android.gms.ads.LoadAdError;
+import com.google.android.gms.ads.rewarded.RewardedAd;
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback;
 import java.util.Calendar;
-import java.util.Locale;
 
 public class DailyCheckInDialog extends Dialog {
-
     private static final String TAG = "DailyCheckInDialog";
 
-    private DailyRewardManager rewardManager;
-    private OnCheckInListener listener;
-    private LinearLayout calendarLayout;
+    private final Activity activity; // ✅ Store Activity reference
+    private final DailyRewardManager rewardManager;
+    private final OnRewardListener rewardListener;
+    private GridLayout calendarGrid;
+    private Button checkInButton;
+    private TextView monthYearText;
+    private TextView totalDaysText;
+    private RewardedAd rewardedAd;
+    private int selectedPastDay = -1;
 
-    public interface OnCheckInListener {
-        void onCheckIn(int reward, int streak);
+    public interface OnRewardListener {
+        void onReward(int coins, int day);
     }
 
-    public DailyCheckInDialog(@NonNull Context context, DailyRewardManager rewardManager, OnCheckInListener listener) {
-        super(context, android.R.style.Theme_Material_Dialog);
+    // ✅ Constructor accepts Activity
+    public DailyCheckInDialog(@NonNull Activity activity,
+                              DailyRewardManager rewardManager,
+                              OnRewardListener listener) {
+        super(activity);
+        this.activity = activity; // ✅ Store Activity
         this.rewardManager = rewardManager;
-        this.listener = listener;
+        this.rewardListener = listener;
+    }
 
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
         setContentView(R.layout.dialog_daily_checkin);
 
-        calendarLayout = findViewById(R.id.calendarLayout);
-        Button btnCheckIn = findViewById(R.id.btnCheckIn);
-        Button btnClose = findViewById(R.id.btnClose);
+        android.view.WindowManager.LayoutParams params = getWindow().getAttributes();
+        params.width = (int) (getContext().getResources().getDisplayMetrics().widthPixels * 0.95);
+        params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+        getWindow().setAttributes(params);
+
+        calendarGrid = findViewById(R.id.calendarGrid);
+        checkInButton = findViewById(R.id.checkInButton);
+        monthYearText = findViewById(R.id.monthYearText);
+        totalDaysText = findViewById(R.id.totalDaysText);
+
+        // Check for new month
+        rewardManager.checkAndResetForNewMonth();
 
         setupCalendar();
+        updateMonthYear();
+        updateTotalDays();
+        updateCheckInButton(); // ✅ Update button state
 
-        if (btnCheckIn != null) {
-            if (rewardManager.canCheckInToday()) {
-                btnCheckIn.setEnabled(true);
-                btnCheckIn.setText("✅ Check In Today");
-                btnCheckIn.setOnClickListener(v -> performCheckIn());
-            } else {
-                btnCheckIn.setEnabled(false);
-                btnCheckIn.setText("Already checked in today ✓");
-                btnCheckIn.setAlpha(0.5f);
-            }
-        }
+        checkInButton.setOnClickListener(v -> performCheckIn());
+        findViewById(R.id.closeButton).setOnClickListener(v -> dismiss());
 
-        if (btnClose != null) {
-            btnClose.setOnClickListener(v -> dismiss());
+        loadRewardedAd();
+    }
+
+    private void updateCheckInButton() {
+        if (rewardManager.canCheckInToday()) {
+            checkInButton.setEnabled(true);
+            checkInButton.setText("Check In Today");
+        } else {
+            checkInButton.setEnabled(false);
+            checkInButton.setText("✓ Checked In Today");
         }
     }
 
-    /**
-     * ✅ FIX: Setup calendar cho tháng hiện tại với current date highlight
-     */
     private void setupCalendar() {
-        if (calendarLayout == null) return;
+        calendarGrid.removeAllViews();
 
-        calendarLayout.removeAllViews();
+        int daysInMonth = rewardManager.getDaysInCurrentMonth();
+        int currentDay = rewardManager.getCurrentDay();
 
-        // ✅ GET: Current date info
-        Calendar calendar = Calendar.getInstance();
-        int currentDay = calendar.get(Calendar.DAY_OF_MONTH);
-        int currentMonth = calendar.get(Calendar.MONTH); // 0-11
-        int currentYear = calendar.get(Calendar.YEAR);
+        android.util.DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
+        float density = metrics.density;
 
-        // ✅ GET: Số ngày trong tháng hiện tại
-        int daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH);
+        // ✅ Calculate more conservative size
+        int screenWidth = (int) (metrics.widthPixels * 0.95f);
 
-        // Display month/year header
-        TextView monthYearText = new TextView(getContext());
-        SimpleDateFormat sdf = new SimpleDateFormat("MMMM yyyy", Locale.getDefault());
-        monthYearText.setText(sdf.format(calendar.getTime()));
-        monthYearText.setTextSize(22);
-        monthYearText.setTextColor(Color.parseColor("#333333"));
-        monthYearText.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
-        monthYearText.setPadding(0, 10, 0, 30);
-        monthYearText.setTypeface(null, android.graphics.Typeface.BOLD);
-        calendarLayout.addView(monthYearText);
+        // Account for dialog padding (12dp each side = 24dp total)
+        // Account for GridLayout margins (1dp * 2 per item * 7 items = 14dp)
+        int dialogPadding = (int) (24 * density);
+        int totalMargins = (int) (14 * density);
+        int availableWidth = screenWidth - dialogPadding - totalMargins;
 
-        // Add day labels (Sun, Mon, Tue...)
-        addWeekdayLabels();
+        // Divide by 7 columns
+        int itemWidth = availableWidth / 7;
+        int itemHeight = (int) (itemWidth * 1.15); // Slightly taller
 
-        // ✅ CREATE: Grid layout for calendar
-        LinearLayout weekRow = null;
-        int dayOfWeek = 0;
-
-        // Get first day of month
-        calendar.set(Calendar.DAY_OF_MONTH, 1);
-        int firstDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK) - 1; // 0 = Sunday
-
-        // Start first week row
-        weekRow = createWeekRow();
-
-        // Add empty cells for days before month starts
-        for (int i = 0; i < firstDayOfWeek; i++) {
-            addEmptyDayCell(weekRow);
-            dayOfWeek++;
+        // ✅ Make sure minimum size
+        if (itemWidth < (int) (40 * density)) {
+            itemWidth = (int) (40 * density);
+            itemHeight = (int) (46 * density);
         }
 
-        // ✅ ADD: All days in current month
+        calendarGrid.setColumnCount(7);
+        calendarGrid.setRowCount((int) Math.ceil(daysInMonth / 7.0));
+
         for (int day = 1; day <= daysInMonth; day++) {
-            // New week row
-            if (dayOfWeek == 7) {
-                calendarLayout.addView(weekRow);
-                weekRow = createWeekRow();
-                dayOfWeek = 0;
+            View dayView = getLayoutInflater().inflate(R.layout.item_calendar_day, calendarGrid, false);
+
+            // ✅ Set exact size with small margins
+            GridLayout.LayoutParams params = new GridLayout.LayoutParams();
+            params.width = itemWidth;
+            params.height = itemHeight;
+            params.setMargins(1, 1, 1, 1); // Consistent 1px margins
+            dayView.setLayoutParams(params);
+
+            TextView dayNumber = dayView.findViewById(R.id.dayNumber);
+            TextView rewardAmount = dayView.findViewById(R.id.rewardAmount);
+            View checkMark = dayView.findViewById(R.id.checkMark);
+            View todayIndicator = dayView.findViewById(R.id.todayIndicator);
+            View adIcon = dayView.findViewById(R.id.adIcon);
+
+            dayNumber.setText(String.valueOf(day));
+
+            int reward = rewardManager.getRewardForDay(day);
+            rewardAmount.setText(reward + "🪙");
+            rewardAmount.setVisibility(View.VISIBLE);
+
+            boolean isCheckedIn = rewardManager.isDayCheckedIn(day);
+
+            if (day == currentDay) {
+                todayIndicator.setVisibility(View.VISIBLE);
+                if (!isCheckedIn) {
+                    dayView.setBackgroundResource(R.drawable.bg_calendar_today);
+                }
             }
 
-            boolean isToday = (day == currentDay);
-            boolean isPast = (day < currentDay);
-            boolean isCheckedIn = !rewardManager.canCheckInToday() && isToday;
+            if (isCheckedIn) {
+                checkMark.setVisibility(View.VISIBLE);
+                dayView.setBackgroundResource(R.drawable.bg_calendar_checked);
+                adIcon.setVisibility(View.GONE);
+            } else if (day < currentDay) {
+                adIcon.setVisibility(View.VISIBLE);
+                dayView.setBackgroundResource(R.drawable.bg_calendar_missed);
 
-            addDayCell(weekRow, day, isToday, isPast, isCheckedIn);
-            dayOfWeek++;
-        }
-
-        // Fill remaining cells in last week
-        if (weekRow != null && weekRow.getChildCount() > 0) {
-            while (dayOfWeek < 7) {
-                addEmptyDayCell(weekRow);
-                dayOfWeek++;
+                final int pastDay = day;
+                dayView.setOnClickListener(v -> showAdForPastDay(pastDay));
+            } else if (day > currentDay) {
+                dayView.setBackgroundResource(R.drawable.bg_calendar_future);
+                adIcon.setVisibility(View.GONE);
             }
-            calendarLayout.addView(weekRow);
+
+            calendarGrid.addView(dayView);
         }
     }
 
-    /**
-     * Add weekday labels
-     */
-    private void addWeekdayLabels() {
-        LinearLayout labelRow = createWeekRow();
-        String[] weekdays = {"S", "M", "T", "W", "T", "F", "S"};
-
-        for (String day : weekdays) {
-            TextView label = new TextView(getContext());
-            label.setText(day);
-            label.setTextSize(14);
-            label.setTextColor(Color.parseColor("#999999"));
-            label.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
-            label.setTypeface(null, android.graphics.Typeface.BOLD);
-
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    0,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    1.0f
-            );
-            params.setMargins(4, 4, 4, 4);
-            label.setLayoutParams(params);
-
-            labelRow.addView(label);
-        }
-
-        calendarLayout.addView(labelRow);
+    private void updateMonthYear() {
+        Calendar calendar = Calendar.getInstance();
+        String monthYear = new java.text.SimpleDateFormat("MMMM yyyy", java.util.Locale.getDefault())
+                .format(calendar.getTime());
+        monthYearText.setText(monthYear);
     }
 
-    /**
-     * Create week row container
-     */
-    private LinearLayout createWeekRow() {
-        LinearLayout weekRow = new LinearLayout(getContext());
-        weekRow.setOrientation(LinearLayout.HORIZONTAL);
-        weekRow.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        ));
-        return weekRow;
+    private void updateTotalDays() {
+        int checkedDays = rewardManager.getTotalCheckedInDays();
+        int totalDays = rewardManager.getDaysInCurrentMonth();
+        totalDaysText.setText("Checked in: " + checkedDays + "/" + totalDays + " days");
     }
 
-    /**
-     * Add day cell to calendar
-     */
-    private void addDayCell(LinearLayout weekRow, int day, boolean isToday, boolean isPast, boolean isCheckedIn) {
-        TextView dayView = new TextView(getContext());
-
-        // ✅ TEXT: Show checkmark if checked in today
-        if (isCheckedIn) {
-            dayView.setText(day + "\n✅");
-        } else {
-            dayView.setText(String.valueOf(day));
-        }
-
-        dayView.setTextSize(16);
-        dayView.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
-        dayView.setPadding(12, 16, 12, 16);
-        dayView.setGravity(android.view.Gravity.CENTER);
-
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                0,
-                100, // Fixed height
-                1.0f
-        );
-        params.setMargins(4, 4, 4, 4);
-        dayView.setLayoutParams(params);
-
-        // ✅ STYLE: Different styles for different states
-        if (isToday) {
-            // Current day - Green background
-            dayView.setBackgroundResource(R.drawable.bg_day_current);
-            dayView.setTextColor(Color.WHITE);
-            dayView.setTypeface(null, android.graphics.Typeface.BOLD);
-        } else if (isPast) {
-            // Past days - Gray (could check if actually checked in)
-            dayView.setBackgroundResource(R.drawable.bg_day_past);
-            dayView.setTextColor(Color.parseColor("#666666"));
-        } else {
-            // Future days - Light gray
-            dayView.setBackgroundResource(R.drawable.bg_day_future);
-            dayView.setTextColor(Color.parseColor("#CCCCCC"));
-        }
-
-        weekRow.addView(dayView);
-    }
-
-    /**
-     * Add empty cell for padding
-     */
-    private void addEmptyDayCell(LinearLayout weekRow) {
-        View emptyView = new View(getContext());
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                0,
-                100,
-                1.0f
-        );
-        params.setMargins(4, 4, 4, 4);
-        emptyView.setLayoutParams(params);
-        weekRow.addView(emptyView);
-    }
-
-    /**
-     * Perform check-in
-     */
     private void performCheckIn() {
-        try {
-            // ✅ FIX: Use existing method or add simple version
-            boolean success = rewardManager.canCheckInToday();
-
-            if (!success) {
-                android.widget.Toast.makeText(getContext(),
-                        "Already checked in today!",
-                        android.widget.Toast.LENGTH_SHORT).show();
-                dismiss();
-                return;
-            }
-
-            // Simple reward (fixed amount for now)
-            int reward = 10; // Base reward
-            int streak = 1; // Default streak
-
-            if (listener != null) {
-                listener.onCheckIn(reward, streak);
-            }
-
-            android.widget.Toast.makeText(getContext(),
-                    "✅ Checked in! +" + reward + " coins",
-                    android.widget.Toast.LENGTH_SHORT).show();
-
-            dismiss();
-
-        } catch (Exception e) {
-            android.util.Log.e(TAG, "Error performing check-in", e);
-            android.widget.Toast.makeText(getContext(),
-                    "Error: " + e.getMessage(),
-                    android.widget.Toast.LENGTH_SHORT).show();
+        if (!rewardManager.canCheckInToday()) {
+            Toast.makeText(getContext(), "Already checked in today!", Toast.LENGTH_SHORT).show();
+            return;
         }
+
+        DailyRewardManager.CheckInResult result = rewardManager.checkIn();
+
+        if (result.success) {
+            Toast.makeText(getContext(),
+                    "✅ Checked in! +" + result.reward + " coins",
+                    Toast.LENGTH_SHORT).show();
+
+            if (rewardListener != null) {
+                rewardListener.onReward(result.reward, result.day);
+            }
+
+            setupCalendar();
+            updateTotalDays();
+            updateCheckInButton(); // ✅ Update button after check-in
+
+        } else {
+            Toast.makeText(getContext(), result.message, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // ===== REWARDED AD =====
+
+    private void loadRewardedAd() {
+        AdRequest adRequest = new AdRequest.Builder().build();
+
+        RewardedAd.load(getContext(), AdMobConfig.REWARDED_AD_UNIT_ID, adRequest,
+                new RewardedAdLoadCallback() {
+                    @Override
+                    public void onAdLoaded(@NonNull RewardedAd ad) {
+                        rewardedAd = ad;
+                        Log.d(TAG, "Rewarded ad loaded");
+                    }
+
+                    @Override
+                    public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+                        Log.e(TAG, "Failed to load rewarded ad: " + loadAdError.getMessage());
+                        rewardedAd = null;
+                    }
+                });
+    }
+
+    private void showAdForPastDay(int day) {
+        if (rewardedAd == null) {
+            Toast.makeText(getContext(), "Ad not ready. Please try again.", Toast.LENGTH_SHORT).show();
+            loadRewardedAd();
+            return;
+        }
+
+        selectedPastDay = day;
+
+        rewardedAd.setFullScreenContentCallback(new FullScreenContentCallback() {
+            @Override
+            public void onAdDismissedFullScreenContent() {
+                Log.d(TAG, "Ad dismissed");
+                rewardedAd = null;
+                loadRewardedAd();
+            }
+
+            @Override
+            public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
+                Log.e(TAG, "Ad failed to show: " + adError.getMessage());
+                rewardedAd = null;
+                Toast.makeText(getContext(), "Failed to show ad", Toast.LENGTH_SHORT).show();
+                loadRewardedAd();
+            }
+
+            @Override
+            public void onAdShowedFullScreenContent() {
+                Log.d(TAG, "Ad showed");
+            }
+        });
+
+        rewardedAd.show(activity, rewardItem -> {
+            DailyRewardManager.CheckInResult result = rewardManager.checkInPastDay(selectedPastDay);
+
+            if (result.success) {
+                Toast.makeText(getContext(),
+                        "✅ Day " + selectedPastDay + " checked in! +" + result.reward + " coins",
+                        Toast.LENGTH_SHORT).show();
+
+                if (rewardListener != null) {
+                    rewardListener.onReward(result.reward, result.day);
+                }
+
+                setupCalendar();
+                updateTotalDays();
+                // Don't update button here - only when checking in today
+            } else {
+                Toast.makeText(getContext(), result.message, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 }

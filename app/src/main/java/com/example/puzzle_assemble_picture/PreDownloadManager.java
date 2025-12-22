@@ -10,11 +10,7 @@ import com.google.android.play.core.assetpacks.AssetPackState;
 import com.google.android.play.core.assetpacks.AssetPackStateUpdateListener;
 import com.google.android.play.core.assetpacks.model.AssetPackStatus;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Manager cho pre-download asset packs
@@ -117,7 +113,7 @@ public class PreDownloadManager {
         Log.d(TAG, "Requesting download for pack: " + packName);
 
         // Check current status first
-        assetPackManager.getPackStates(Arrays.asList(packName))
+        assetPackManager.getPackStates(Collections.singletonList(packName))
                 .addOnSuccessListener(assetPackStates -> {
                     AssetPackState state = assetPackStates.packStates().get(packName);
 
@@ -212,7 +208,7 @@ public class PreDownloadManager {
     private void startDownload(String packName) {
         notifyStarted(packName);
 
-        assetPackManager.fetch(Arrays.asList(packName))
+        assetPackManager.fetch(Collections.singletonList(packName))
                 .addOnSuccessListener(aVoid -> {
                     Log.d(TAG, "Download request successful for: " + packName);
                     listenForPackDownload(packName);

@@ -19,8 +19,8 @@ public class ImageManager {
     private static final int BUILTIN_LEVELS = 10;
     private static final int LEVELS_PER_PACK = 20;
 
-    private Context context;
-    private AssetPackManager assetPackManager;
+    private final Context context;
+    private final AssetPackManager assetPackManager;
 
     public ImageManager(Context context) {
         this.context = context;

@@ -32,8 +32,8 @@ public class LoadingActivity extends AppCompatActivity {
     private long startTime;
     private ExecutorService executorService;
 
-    private AtomicInteger totalTasks = new AtomicInteger(0);
-    private AtomicInteger completedTasks = new AtomicInteger(0);
+    private final AtomicInteger totalTasks = new AtomicInteger(0);
+    private final AtomicInteger completedTasks = new AtomicInteger(0);
 
     // Managers
     private PreDownloadManager preDownloadManager;

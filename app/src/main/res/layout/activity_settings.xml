@@ -21,7 +21,7 @@
                 android:textStyle="bold"
                 android:textColor="#333333"
                 android:gravity="center"
-                android:layout_marginBottom="24dp" />
+                android:layout_marginBottom="16dp" />
 
         <!-- Audio Section -->
         <androidx.cardview.widget.CardView
@@ -35,7 +35,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="8dp">
 
                 <TextView
                         android:layout_width="wrap_content"
@@ -210,7 +210,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="12dp">
 
                 <TextView
                         android:layout_width="wrap_content"
@@ -337,13 +337,13 @@
                 android:layout_height="wrap_content"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="4dp"
-                android:layout_marginBottom="16dp">
+                android:layout_marginBottom="12dp">
 
             <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="16dp">
+                    android:padding="12dp">
 
                 <TextView
                         android:layout_width="wrap_content"
@@ -352,7 +352,7 @@
                         android:textSize="20sp"
                         android:textStyle="bold"
                         android:textColor="#333333"
-                        android:layout_marginBottom="16dp" />
+                        android:layout_marginBottom="12dp" />
 
                 <!-- Language -->
                 <LinearLayout
@@ -414,11 +414,11 @@
             <Button
                     android:id="@+id/btnResetDefaults"
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
+                    android:layout_height="50dp"
                     android:text="🔄 Reset to Defaults"
                     android:textSize="16sp"
                     style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_marginBottom="8dp" />
+                    android:layout_marginBottom="4dp" />
 
             <LinearLayout
                     android:layout_width="match_parent"
@@ -429,7 +429,7 @@
                 <Button
                         android:id="@+id/btnCancel"
                         android:layout_width="0dp"
-                        android:layout_height="56dp"
+                        android:layout_height="50dp"
                         android:layout_weight="1"
                         android:text="Cancel"
                         android:textSize="16sp"
@@ -440,7 +440,7 @@
                 <Button
                         android:id="@+id/btnSave"
                         android:layout_width="0dp"
-                        android:layout_height="56dp"
+                        android:layout_height="50dp"
                         android:layout_weight="1"
                         android:text="✓ Save"
                         android:textSize="16sp"

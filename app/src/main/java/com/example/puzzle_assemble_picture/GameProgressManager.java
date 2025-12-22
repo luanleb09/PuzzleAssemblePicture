@@ -21,8 +21,8 @@ public class GameProgressManager {
     public static final int UNLOCK_HARD_AT = 1;
     public static final int UNLOCK_INSANE_AT = 1;
 
-    private SharedPreferences prefs;
-    private Gson gson;
+    private final SharedPreferences prefs;
+    private final Gson gson;
 
     public GameProgressManager(Context context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);

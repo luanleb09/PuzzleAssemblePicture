@@ -41,8 +41,8 @@ public class PowerUpsManager {
     // Rewarded ad unit ID (Test ID - replace with production ID)
     private static final String REWARDED_AD_ID = GameConfig.REWARDED_AD_ID;
 
-    private SharedPreferences prefs;
-    private Context context;
+    private final SharedPreferences prefs;
+    private final Context context;
     private RewardedAd rewardedAd;
     private boolean isLoadingAd = false;
     private PowerUpType pendingPowerUp = null;
@@ -148,7 +148,7 @@ public class PowerUpsManager {
         String powerUpName = getNameForType(type);
         int currentCoins = coinManager.getCoins();
 
-        AlertDialog.Builder builder = new AlertDialog.Builder((Activity) context);
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
         builder.setTitle("Use " + powerUpName + "?");
         builder.setMessage(
                 "❌ No free uses left today!\n\n" +

@@ -80,12 +80,12 @@ public class MainActivity extends AppCompatActivity {
 
     private void showDailyCheckInDialog() {
         DailyCheckInDialog dialog = new DailyCheckInDialog(
-                this,
+                this, // ✅ Pass Activity (this) instead of context
                 dailyRewardManager,
-                (reward, streak) -> {
-                    // Handle reward (add coins, etc.)
+                (reward, day) -> {
+                    // Handle reward
                     Toast.makeText(this, "Earned " + reward + " coins!", Toast.LENGTH_SHORT).show();
-                    // Update UI
+                    updateCoinDisplay();
                 }
         );
         dialog.show();

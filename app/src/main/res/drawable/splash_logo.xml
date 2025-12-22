@@ -4,6 +4,6 @@
     <item>
         <bitmap
                 android:gravity="center"
-                android:src="@drawable/brain_quest_logo"/>
+                android:src="@drawable/ziny_logo_vertical"/>
     </item>
 </layer-list>

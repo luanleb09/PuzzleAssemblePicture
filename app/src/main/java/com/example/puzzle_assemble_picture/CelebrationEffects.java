@@ -10,6 +10,7 @@ import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.OvershootInterpolator;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 import nl.dionsegijn.konfetti.core.Party;
@@ -149,7 +150,7 @@ public class CelebrationEffects {
 
         return new PartyFactory(emitterConfig)
                 .spread(30)
-                .shapes(Arrays.asList(Shape.Square.INSTANCE))
+                .shapes(Collections.singletonList(Shape.Square.INSTANCE))
                 .colors(Arrays.asList(
                         0xFFFFD700,
                         0xFFFFFFFF
@@ -168,7 +169,7 @@ public class CelebrationEffects {
 
         return new PartyFactory(emitterConfig)
                 .spread(360)
-                .shapes(Arrays.asList(Shape.Circle.INSTANCE))
+                .shapes(Collections.singletonList(Shape.Circle.INSTANCE))
                 .colors(Arrays.asList(
                         0xFFFFD700,
                         0xFFFF6B6B,

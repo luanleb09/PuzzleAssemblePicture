@@ -69,10 +69,10 @@ public class GameActivity extends AppCompatActivity {
     private TextView coinCountGameText;
     private CoinManager coinManager;
 
-    private Handler handler = new Handler(Looper.getMainLooper());
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
     private boolean isRevealingPreview = false;
-    private Handler revealHandler = new Handler(Looper.getMainLooper());
+    private final Handler revealHandler = new Handler(Looper.getMainLooper());
     private Runnable hidePreviewRunnable;
 
     private InterstitialAdManager interstitialAdManager;

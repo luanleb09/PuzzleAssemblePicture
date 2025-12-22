@@ -9,20 +9,20 @@
 
     <!-- Tap to Continue Text -->
     <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
             android:orientation="vertical"
             android:gravity="center"
             android:padding="32dp"
-            android:background="@drawable/rounded_bg">
+            android:background="@drawable/rounded_bg"
+    >
 
         <TextView
                 android:id="@+id/tapToContinueText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="✨ Tap anywhere to continue ✨"
-                android:textSize="24sp"
+                android:text="✨ Tap anywhere to continue ✨ 👆"
+                android:textSize="18sp"
                 android:textStyle="bold"
                 android:textColor="#FFD700"
                 android:gravity="center"
@@ -30,16 +30,7 @@
                 android:shadowDx="2"
                 android:shadowDy="2"
                 android:shadowRadius="4"
-                android:lineSpacingExtra="8dp" />
-
-        <!-- Blinking animation indicator -->
-        <TextView
-                android:id="@+id/fingerIcon"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="👆"
-                android:textSize="48sp"
-                android:layout_marginTop="16dp" />
+                android:lineSpacingExtra="8dp"/>
 
 
     </LinearLayout>
