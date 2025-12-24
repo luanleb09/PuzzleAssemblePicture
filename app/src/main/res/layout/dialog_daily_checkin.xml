@@ -161,6 +161,7 @@
             <!-- Check In Button -->
             <Button
                     android:id="@+id/checkInButton"
+                    style="@style/Button.Primary"
                     android:layout_width="match_parent"
                     android:layout_height="50dp"
                     android:text="Check In Today"

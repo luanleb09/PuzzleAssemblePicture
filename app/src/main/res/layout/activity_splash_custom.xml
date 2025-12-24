@@ -11,7 +11,7 @@
             android:id="@+id/splashLogo"
             android:layout_width="0dp"
             android:layout_height="0dp"
-            android:src="@drawable/brain_quest_logo"
+            android:src="@drawable/ziny_logo_vertical"
             android:scaleType="fitCenter"
             android:contentDescription="Logo"
             app:layout_constraintWidth_percent="1"

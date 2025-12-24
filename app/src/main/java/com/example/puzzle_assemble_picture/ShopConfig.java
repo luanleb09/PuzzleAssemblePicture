@@ -54,14 +54,14 @@ public class ShopConfig {
             new PowerUp(
                     "auto_solve_pack",
                     "🎯 Auto-Solve Pack",
-                    50,
+                    160,
                     "Add 3 auto-solves to help complete puzzles",
                     "🎯"
             ),
             new PowerUp(
                     "shuffle_pack",
                     "🔀 Shuffle Pack",
-                    30,
+                    160,
                     "Add 5 shuffles to rearrange remaining pieces",
                     "🔀"
             ),
@@ -70,21 +70,21 @@ public class ShopConfig {
             new PowerUp(
                     "solve_corners",
                     "📐 Solve 4 Pieces Corners",
-                    200,
+                    350,
                     "Auto-place all 4 corner pieces instantly",
                     "📐"
             ),
             new PowerUp(
                     "solve_edges",
                     "🔲 Solve All Edges",
-                    400,
+                    300,
                     "Auto-place all edge pieces instantly",
                     "🔲"
             ),
             new PowerUp(
                     "reveal_preview",
                     "👁️ Reveal Preview",
-                    80,
+                    160,
                     "Show full image for 10 seconds (use for Insane mode)",
                     "👁️"
             )

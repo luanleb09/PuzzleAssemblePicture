@@ -5,7 +5,8 @@
         android:layout_height="match_parent"
         android:background="#80000000"
         android:clickable="true"
-        android:focusable="true">
+        android:focusable="true"
+        android:gravity="bottom">
 
     <!-- Tap to Continue Text -->
     <LinearLayout
@@ -14,8 +15,7 @@
             android:orientation="vertical"
             android:gravity="center"
             android:padding="32dp"
-            android:background="@drawable/rounded_bg"
-    >
+            android:background="@drawable/rounded_bg">
 
         <TextView
                 android:id="@+id/tapToContinueText"
@@ -31,8 +31,5 @@
                 android:shadowDy="2"
                 android:shadowRadius="4"
                 android:lineSpacingExtra="8dp"/>
-
-
     </LinearLayout>
-
 </RelativeLayout>
